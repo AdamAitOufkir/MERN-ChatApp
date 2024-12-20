@@ -101,6 +101,15 @@ const ChatContainer = () => {
                   {message.text}
                 </p>
               )}
+             {message.senderId === authUser._id && (
+                
+                <button
+                onClick={() => useChatStore.getState().deleteMessage(message._id)}
+                className="text-red-500 text-xs mt-2 self-end"
+            >
+                Delete
+            </button>
+            )}
             </div>
           </div>
         ))}
