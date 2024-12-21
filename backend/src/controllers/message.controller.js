@@ -3,7 +3,7 @@ import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from './../lib/socket.js';
 
-export const getUsersForSidebar = async (req, res) => {
+export const getUsers = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
     const filteredUsers = await User.find({
@@ -12,10 +12,31 @@ export const getUsersForSidebar = async (req, res) => {
 
     res.status(200).json(filteredUsers);
   } catch (error) {
-    console.log("error in getUsersForSidebar controller", error);
+    console.log("error in getUsers controller", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const getContacts = async (req, res) => {
+  try {
+    const loggedInUserId = req.user._id;
+
+    // Find the logged-in user and populate their contacts
+    const loggedInUser = await User.findById(loggedInUserId)
+      .populate("contacts", "-password") // Populate contacts and exclude passwords
+      .select("contacts"); // Only retrieve the contacts field
+
+    if (!loggedInUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(loggedInUser.contacts);
+  } catch (error) {
+    console.log("Error in getContacts controller", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 export const getMessages = async (req, res) => {
   try {

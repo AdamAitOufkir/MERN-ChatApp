@@ -6,8 +6,10 @@ import { useAuthStore } from "./useAuthStore";
 export const useChatStore = create((set, get) => ({
     messages: [],
     users: [],
+    contacts: [],
     selectedUser: null,
     isUsersLoading: false,
+    isContactsLoading: false,
     isMessagesLoading: false,
 
     getUsers: async () => {
@@ -21,6 +23,34 @@ export const useChatStore = create((set, get) => ({
             set({ isUsersLoading: false })
         }
     },
+
+    getContacts: async () => {
+        set({ isUsersLoading: true });
+        try {
+            const res = await axiosInstance.get("/messages/contacts")
+            set({ contacts: res.data })
+        } catch (error) {
+            toast.error(error.response.data.message)
+        } finally {
+            set({ isContactsLoading: false })
+        }
+    },
+
+    addContact: async (contactId) => {
+        set({ addingContact: true })
+        try {
+            const { contacts } = get()
+
+            const res = await axiosInstance.post(`/auth/add-contact/${contactId}`)
+            set({ contacts: [...contacts, res.data] })
+            toast.success("Contact Added Successfully")
+        } catch (error) {
+            toast.error(error.response.data.message)
+        } finally {
+            set({ addingContact: false })
+        }
+    },
+
 
     getMessages: async (userId) => {
         set({ isMessagesLoading: true })
