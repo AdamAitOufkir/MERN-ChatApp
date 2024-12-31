@@ -1,11 +1,12 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { X } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -18,10 +19,10 @@ const ChatContainer = () => {
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const [previewImage, setPreviewImage] = useState(null); // State for preview modal
 
   useEffect(() => {
     getMessages(selectedUser._id);
-
     subscribeToMessages();
 
     return () => unsubscribeFromMessages();
@@ -37,6 +38,8 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const closeModal = () => setPreviewImage(null); // Close modal function
 
   if (isMessagesLoading) {
     return (
@@ -61,7 +64,7 @@ const ChatContainer = () => {
             }`}
             ref={messageEndRef}
           >
-            <div className=" chat-image avatar">
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -81,13 +84,14 @@ const ChatContainer = () => {
             <div
               className={`chat-bubble flex flex-col pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              } `}
+              }`}
             >
               {message.image && (
                 <img
                   src={message.image}
                   alt="attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2"
+                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer"
+                  onClick={() => setPreviewImage(message.image)} // Set image to preview
                 />
               )}
               {message.text && (
@@ -107,7 +111,29 @@ const ChatContainer = () => {
       </div>
 
       <MessageInput />
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
+          onClick={closeModal} // Close modal on backdrop click
+        >
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="max-w-full max-h-full rounded-md"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking on the image
+          />
+          <button
+            className="absolute top-4 right-4 text-white text-3xl font-bold"
+            onClick={closeModal}
+          >
+            <X />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
+
 export default ChatContainer;
