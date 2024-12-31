@@ -96,7 +96,7 @@ export const updateProfile = async (req, res) => {
       asset_folder: 'profilepictures',
       resource_type: 'image'
     });
-    
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadResponse.secure_url },
@@ -109,6 +109,43 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const addContact = async (req, res) => {
+  try {
+    const contactToAddId = req.params.id;
+    const userId = req.user._id;
+
+    const contactToAdd = await User.findById(contactToAddId);
+
+    if (!contactToAdd) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (user.contacts.includes(contactToAddId)) {
+      return res.status(400).json({ message: "User is already in your contacts" });
+    }
+
+    // Add contactToAddId to user's contacts
+    await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { contacts: contactToAddId } },
+      { new: true }
+    ).populate("contacts", "-password");
+
+    // Add userId to contactToAdd's contacts
+    await User.findByIdAndUpdate(
+      contactToAddId,
+      { $addToSet: { contacts: userId } },
+      { new: true }
+    ).populate("contacts", "-password");
+
+    res.status(200).json(contactToAdd);
+  } catch (error) {
+    console.log("error in addContact", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 export const checkAuth = (req, res) => {
   try {
     res.status(200).json(req.user);

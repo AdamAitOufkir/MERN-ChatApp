@@ -14,12 +14,18 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlenght: 6,
+      minlength: 6,
     },
     profilePic: {
       type: String,
       default: "",
     },
+    contacts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
