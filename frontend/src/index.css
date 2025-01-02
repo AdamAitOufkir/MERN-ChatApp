@@ -19,3 +19,6 @@
     background-image: linear-gradient(105deg, transparent 0%, transparent 40%, oklch(0 0 0 / 0.21) 50%, transparent 60%, transparent 100%);
 }
 
+.deletebutton button{
+    width: -webkit-fill-available !important
+}

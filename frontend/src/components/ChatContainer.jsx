@@ -1,11 +1,12 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { ChevronDown } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -19,6 +20,8 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
+  const [visibleDropdown, setVisibleDropdown] = useState(null);
+
   useEffect(() => {
     getMessages(selectedUser._id);
 
@@ -31,12 +34,32 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
   ]);
-
   useEffect(() => {
     if (messageEndRef.current && messages) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        visibleDropdown &&
+    !event.target.closest(".dropdown-container") &&
+    !event.target.closest(".deletebutton")
+      ) {
+        setVisibleDropdown(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }; }, [visibleDropdown]);
+
+    const toggleDropdown = (messageId) => {
+      setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
+    };
 
   if (isMessagesLoading) {
     return (
@@ -47,6 +70,7 @@ const ChatContainer = () => {
       </div>
     );
   }
+  
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
@@ -61,7 +85,7 @@ const ChatContainer = () => {
             }`}
             ref={messageEndRef}
           >
-            <div className=" chat-image avatar">
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -79,9 +103,9 @@ const ChatContainer = () => {
               </time>
             </div>
             <div
-              className={`chat-bubble flex flex-col pr-8 rounded-2xl ${
+              className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              } `}
+              } relative group`}
             >
               {message.image && (
                 <img
@@ -101,15 +125,37 @@ const ChatContainer = () => {
                   {message.text}
                 </p>
               )}
-             {message.senderId === authUser._id && (
-                
-                <button
-                onClick={() => useChatStore.getState().deleteMessage(message._id)}
-                className="text-red-500 text-xs mt-2 self-end"
-            >
-                Delete
-            </button>
-            )}
+              {message.senderId === authUser._id && (
+                <>
+                  {/* Chevron Down Button */}
+                  <button
+                    onClick={() => toggleDropdown(message._id)}
+                    className="absolute top-2 right-2 hidden group-hover:inline-block btn btn-sm btn-ghost p-0 m-0"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown */}
+                  {visibleDropdown === message._id && (
+                    <ul className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
+                      onClick={(e) => e.stopPropagation()}>
+                      <li>
+                        <button
+                          onClick={(e)=> {
+                            e.stopPropagation(); 
+                            setVisibleDropdown(null);
+                            useChatStore.getState().deleteMessage(message._id);
+                          }}
+                          className="block px-4 py-2 text-sm text-red-500 hover:bg-base-300 ;
+}"
+                        >
+                          Delete
+                        </button>
+                      </li>
+                    </ul>
+                  )}
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -119,4 +165,5 @@ const ChatContainer = () => {
     </div>
   );
 };
+
 export default ChatContainer;
