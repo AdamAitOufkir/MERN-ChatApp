@@ -2,6 +2,7 @@ import toast from "react-hot-toast";
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import Swal from "sweetalert2";
 
 export const useChatStore = create((set, get) => ({
     messages: [],
@@ -71,6 +72,41 @@ export const useChatStore = create((set, get) => ({
             set({ messages: [...messages, res.data] }) // keep all messages , and add new message at the end
         } catch (error) {
             toast.error(error.response.data.message)
+        }
+    },
+
+    deleteMessage: async (messageId) => {
+        const { messages } = get();
+        try {
+            const result = await Swal.fire({
+                title: "Are you sure?",
+                text: "This action cannot be undone!",
+                showCancelButton: true,
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Yes, delete it!",
+                customClass: {
+                    popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                  },
+            });
+    
+            if (result.isConfirmed) {
+                await axiosInstance.delete(`/messages/${messageId}`);
+                set({ messages: messages.filter((msg) => msg._id !== messageId) });
+                Swal.fire({
+                    title: "Deleted!",
+                    text: "The message has been deleted.",
+                    customClass: {
+                        popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                    },
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                title: "Error!",
+                text: error.response?.data?.message || "Failed to delete the message.",
+                icon: "error",
+            });
         }
     },
 

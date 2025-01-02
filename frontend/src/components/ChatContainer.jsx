@@ -7,6 +7,7 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -20,6 +21,7 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const [previewImage, setPreviewImage] = useState(null); // State for preview modal
+  const [visibleDropdown, setVisibleDropdown] = useState(null);
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -38,6 +40,28 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        visibleDropdown &&
+        !event.target.closest(".dropdown-container") &&
+        !event.target.closest(".deletebutton")
+      ) {
+        setVisibleDropdown(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [visibleDropdown]);
+
+  const toggleDropdown = (messageId) => {
+    setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
+  };
 
   const closeModal = () => setPreviewImage(null); // Close modal function
 
@@ -59,9 +83,7 @@ const ChatContainer = () => {
         {messages.map((message) => (
           <div
             key={message._id}
-            className={`chat ${
-              message.senderId === authUser._id ? "chat-end" : "chat-start"
-            }`}
+            className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
             ref={messageEndRef}
           >
             <div className="chat-image avatar">
@@ -82,9 +104,9 @@ const ChatContainer = () => {
               </time>
             </div>
             <div
-              className={`chat-bubble flex flex-col pr-8 rounded-2xl ${
+              className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              }`}
+              } relative group`}
             >
               {message.image && (
                 <img
@@ -104,6 +126,38 @@ const ChatContainer = () => {
                 >
                   {message.text}
                 </p>
+              )}
+              {message.senderId === authUser._id && (
+                <>
+                  {/* Chevron Down Button */}
+                  <button
+                    onClick={() => toggleDropdown(message._id)}
+                    className="absolute top-2 right-2 hidden group-hover:inline-block btn btn-sm btn-ghost p-0 m-0"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown */}
+                  {visibleDropdown === message._id && (
+                    <ul
+                      className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <li>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVisibleDropdown(null);
+                            useChatStore.getState().deleteMessage(message._id);
+                          }}
+                          className="block px-4 py-2 text-sm text-red-500 hover:bg-base-300"
+                        >
+                          Delete
+                        </button>
+                      </li>
+                    </ul>
+                  )}
+                </>
               )}
             </div>
           </div>
