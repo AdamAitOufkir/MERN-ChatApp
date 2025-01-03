@@ -65,6 +65,19 @@ const Sidebar = () => {
     setIsSearching(false);
   };
 
+  // Add helper function to count unseen messages
+  const getUnseenCount = (contact) => {
+    if (!contact.messages || !contact.messages.length) return 0;
+
+    const { authUser } = useAuthStore.getState();
+    return contact.messages.filter(
+      (msg) =>
+        msg.senderId === contact._id &&
+        msg.receiverId === authUser._id &&
+        !msg.seen
+    ).length;
+  };
+
   if (isContactsLoading) return <SidebarSkeleton />;
 
   return (
@@ -192,20 +205,36 @@ const Sidebar = () => {
                 alt={user.name}
                 className="size-12 object-cover rounded-full"
               />
+              {/* Online status - bottom right */}
               {onlineUsers.includes(user._id) && (
-                <span
-                  className="absolute bottom-0 right-0 size-3 bg-green-500 
-                  rounded-full ring-2 ring-zinc-900"
-                />
+                <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
               )}
+              {/* Unseen message count - mobile only (top right) */}
+              <div className="lg:hidden">
+                {getUnseenCount(user) > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-content text-xs font-medium min-w-[20px] h-5 rounded-full flex items-center justify-center ring-2 ring-base-100">
+                    {getUnseenCount(user)}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* User info - only visible on larger screens */}
-            <div className="hidden lg:block text-left min-w-0">
-              <div className="font-medium truncate">{user.fullName}</div>
-              <div className="text-sm text-zinc-400">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+            {/* User info and unseen count - desktop only */}
+            <div className="hidden lg:flex flex-1 items-center">
+              <div className="text-left min-w-0 flex-1">
+                <div className="font-medium truncate">{user.fullName}</div>
+                <div className="text-sm text-zinc-400">
+                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                </div>
               </div>
+              {/* Unseen count for desktop */}
+              {getUnseenCount(user) > 0 && (
+                <div className="min-w-fit">
+                  <span className="bg-primary text-primary-content text-xs font-medium px-2.5 py-1 rounded-full">
+                    {getUnseenCount(user)}
+                  </span>
+                </div>
+              )}
             </div>
           </button>
         ))}

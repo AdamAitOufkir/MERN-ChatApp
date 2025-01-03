@@ -31,9 +31,10 @@ export const useChatStore = create((set, get) => ({
             const res = await axiosInstance.get("/messages/contacts");
             const contacts = res.data;
 
-            // Fetch the last message for each contact
+            // Fetch messages for each contact
             for (let contact of contacts) {
                 const messagesRes = await axiosInstance.get(`/messages/${contact._id}`);
+                contact.messages = messagesRes.data;
                 contact.lastMessage = messagesRes.data[messagesRes.data.length - 1];
             }
 
@@ -67,11 +68,15 @@ export const useChatStore = create((set, get) => ({
             const res = await axiosInstance.get(`/messages/${userId}`)
             set({ messages: res.data })
 
-            // Update last message for the selected user
+            // Update last message and messages array for the selected user
             const { contacts } = get();
             const updatedContacts = contacts.map(contact => {
                 if (contact._id === userId) {
-                    contact.lastMessage = res.data[res.data.length - 1];
+                    return {
+                        ...contact,
+                        lastMessage: res.data[res.data.length - 1],
+                        messages: res.data // Update the messages array with seen status
+                    };
                 }
                 return contact;
             });
@@ -162,10 +167,8 @@ export const useChatStore = create((set, get) => ({
             if (selectedUser &&
                 newMessage.senderId === selectedUser._id &&
                 newMessage.receiverId === authUser._id) {
-                socket.emit("markMessagesAsSeen", {
-                    senderId: newMessage.senderId,
-                    receiverId: newMessage.receiverId
-                });
+                // Mark new message as seen immediately
+                axiosInstance.post(`/messages/seen/${selectedUser._id}`);
                 newMessage.seen = true;
             }
 
@@ -180,7 +183,11 @@ export const useChatStore = create((set, get) => ({
             const updatedContacts = contacts.map(contact => {
                 if (contact._id === newMessage.senderId ||
                     contact._id === newMessage.receiverId) {
-                    return { ...contact, lastMessage: newMessage };
+                    return {
+                        ...contact,
+                        lastMessage: newMessage,
+                        messages: [...(contact.messages || []), newMessage]
+                    };
                 }
                 return contact;
             });
@@ -214,6 +221,30 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
-    setSelectedUser: (selectedUser) => set({ selectedUser }),
+    setSelectedUser: async (selectedUser) => {
+        set({ selectedUser });
+        if (selectedUser) {
+            const res = await axiosInstance.post(`/messages/seen/${selectedUser._id}`);
+
+            // Update contacts messages with seen status
+            const { contacts } = get();
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === selectedUser._id) {
+                    const updatedMessages = (contact.messages || []).map(msg => ({
+                        ...msg,
+                        seen: true
+                    }));
+                    return {
+                        ...contact,
+                        messages: updatedMessages
+                    };
+                }
+                return contact;
+            });
+
+            set({ contacts: updatedContacts });
+            await get().getMessages(selectedUser._id);
+        }
+    },
 
 }))

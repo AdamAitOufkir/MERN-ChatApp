@@ -5,7 +5,8 @@ import {
   getContacts,
   sendMessage,
   getUsers,
-  deleteMessage
+  deleteMessage,
+  markMessagesAsSeen
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.get("/users", protectRoute, getUsers);
 router.get("/:id", protectRoute, getMessages);
 router.delete("/:id", protectRoute, deleteMessage);
 router.post("/send/:id", protectRoute, sendMessage);
+router.post("/seen/:id", protectRoute, markMessagesAsSeen);
 
 export default router;
