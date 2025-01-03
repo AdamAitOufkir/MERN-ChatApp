@@ -224,7 +224,7 @@ export const useChatStore = create((set, get) => ({
     setSelectedUser: async (selectedUser) => {
         set({ selectedUser });
         if (selectedUser) {
-            const res = await axiosInstance.post(`/messages/seen/${selectedUser._id}`);
+            await axiosInstance.post(`/messages/seen/${selectedUser._id}`);
 
             // Update contacts messages with seen status
             const { contacts } = get();
