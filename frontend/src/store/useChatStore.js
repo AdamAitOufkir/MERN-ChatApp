@@ -136,15 +136,38 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
+    updateMessagesSeen: (receiverId) => {
+        const { messages } = get();
+        const updatedMessages = messages.map(msg => {
+            if (msg.receiverId === receiverId) {
+                return { ...msg, seen: true };
+            }
+            return msg;
+        });
+        set({ messages: updatedMessages });
+    },
+
     subscribeToMessages: () => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
 
-        // Remove any existing listeners to prevent duplicates
         socket.off("newMessage");
+        socket.off("messagesSeen");
 
         socket.on("newMessage", (newMessage) => {
             const { selectedUser, messages, contacts } = get();
+            const authUser = useAuthStore.getState().authUser;
+
+            // Only mark as seen if we're the receiver and in the active chat with sender
+            if (selectedUser &&
+                newMessage.senderId === selectedUser._id &&
+                newMessage.receiverId === authUser._id) {
+                socket.emit("markMessagesAsSeen", {
+                    senderId: newMessage.senderId,
+                    receiverId: newMessage.receiverId
+                });
+                newMessage.seen = true;
+            }
 
             // Update messages if we're in the relevant chat
             if (selectedUser &&
@@ -164,6 +187,17 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
         });
 
+        socket.on("messagesSeen", ({ receiverId }) => {
+            const { messages } = get();
+            const updatedMessages = messages.map(msg => {
+                if (msg.receiverId === receiverId) {
+                    return { ...msg, seen: true };
+                }
+                return msg;
+            });
+            set({ messages: updatedMessages });
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -176,6 +210,7 @@ export const useChatStore = create((set, get) => ({
         if (socket?.connected) {
             socket.off("newMessage");
             socket.off("connect");
+            socket.off("messagesSeen");
         }
     },
 

@@ -49,6 +49,22 @@ export const getMessages = async (req, res) => {
       ],
     });
 
+    // Mark messages as seen
+    await Message.updateMany(
+      {
+        senderId: userToChatId,
+        receiverId: myId,
+        seen: false
+      },
+      { $set: { seen: true } }
+    );
+
+    // Emit seen status to sender
+    const senderSocketId = getReceiverSocketId(userToChatId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messagesSeen", { receiverId: myId });
+    }
+
     res.status(200).json(messages);
   } catch (error) {
     console.log("error in getMessages controller", error);
@@ -82,8 +98,8 @@ export const sendMessage = async (req, res) => {
 
     const ReceiverSocketId = getReceiverSocketId(receiverId)
     if (ReceiverSocketId) {
-      //emit to receiver (using his socket id) that is stored in the userSocketMap (we pass receiverId from req param and we find corresponding socket id)
       io.to(ReceiverSocketId).emit("newMessage", newMessage)
+      // Remove the automatic seen marking here
     }
 
     res.status(201).json(newMessage);
