@@ -26,14 +26,22 @@ export const useChatStore = create((set, get) => ({
     },
 
     getContacts: async () => {
-        set({ isUsersLoading: true });
+        set({ isContactsLoading: true });
         try {
-            const res = await axiosInstance.get("/messages/contacts")
-            set({ contacts: res.data })
+            const res = await axiosInstance.get("/messages/contacts");
+            const contacts = res.data;
+
+            // Fetch the last message for each contact
+            for (let contact of contacts) {
+                const messagesRes = await axiosInstance.get(`/messages/${contact._id}`);
+                contact.lastMessage = messagesRes.data[messagesRes.data.length - 1];
+            }
+
+            set({ contacts });
         } catch (error) {
-            toast.error(error.response.data.message)
+            toast.error(error.response.data.message);
         } finally {
-            set({ isContactsLoading: false })
+            set({ isContactsLoading: false });
         }
     },
 
@@ -58,6 +66,16 @@ export const useChatStore = create((set, get) => ({
         try {
             const res = await axiosInstance.get(`/messages/${userId}`)
             set({ messages: res.data })
+
+            // Update last message for the selected user
+            const { contacts } = get();
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === userId) {
+                    contact.lastMessage = res.data[res.data.length - 1];
+                }
+                return contact;
+            });
+            set({ contacts: updatedContacts });
         } catch (error) {
             toast.error(error.response.data.message)
         } finally {
@@ -66,10 +84,18 @@ export const useChatStore = create((set, get) => ({
     },
 
     sendMessage: async (messageData) => {
-        const { selectedUser, messages } = get()
+        const { selectedUser, messages, contacts } = get()
         try {
             const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData)
-            set({ messages: [...messages, res.data] }) // keep all messages , and add new message at the end
+            set({
+                messages: [...messages, res.data],
+                contacts: contacts.map(contact => {
+                    if (contact._id === selectedUser._id) {
+                        return { ...contact, lastMessage: res.data };
+                    }
+                    return contact;
+                })
+            });
         } catch (error) {
             toast.error(error.response.data.message)
         }
@@ -87,9 +113,9 @@ export const useChatStore = create((set, get) => ({
                 confirmButtonText: "Yes, delete it!",
                 customClass: {
                     popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
-                  },
+                },
             });
-    
+
             if (result.isConfirmed) {
                 await axiosInstance.delete(`/messages/${messageId}`);
                 set({ messages: messages.filter((msg) => msg._id !== messageId) });
@@ -111,23 +137,46 @@ export const useChatStore = create((set, get) => ({
     },
 
     subscribeToMessages: () => {
-        const { selectedUser } = get()
-        if (!selectedUser) return
+        const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
 
-        const socket = useAuthStore.getState().socket //get socket state from authstore
-        //on newMessages event , do ...
+        // Remove any existing listeners to prevent duplicates
+        socket.off("newMessage");
+
         socket.on("newMessage", (newMessage) => {
-            const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id
-            if (!isMessageSentFromSelectedUser) return;
+            const { selectedUser, messages, contacts } = get();
 
-            set({ messages: [...get().messages, newMessage] })
-        })
+            // Update messages if we're in the relevant chat
+            if (selectedUser &&
+                (newMessage.senderId === selectedUser._id ||
+                    newMessage.receiverId === selectedUser._id)) {
+                set({ messages: [...messages, newMessage] });
+            }
+
+            // Update contacts list with new last message
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === newMessage.senderId ||
+                    contact._id === newMessage.receiverId) {
+                    return { ...contact, lastMessage: newMessage };
+                }
+                return contact;
+            });
+            set({ contacts: updatedContacts });
+        });
+
+        // Handle reconnection
+        socket.on("connect", () => {
+            console.log("Socket reconnected, resubscribing to messages");
+            get().subscribeToMessages();
+        });
     },
 
-
     unsubscribeFromMessages: () => {
-        const socket = useAuthStore.getState().socket //get socket state from authstore
-        socket.off("newMessage")
+        const socket = useAuthStore.getState().socket;
+        if (socket?.connected) {
+            socket.off("newMessage");
+            socket.off("connect");
+        }
     },
 
     setSelectedUser: (selectedUser) => set({ selectedUser }),

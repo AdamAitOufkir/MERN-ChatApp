@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useChatStore } from "../store/useChatStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { UserPlus, Users } from "lucide-react";
@@ -14,6 +14,8 @@ const Sidebar = () => {
     selectedUser,
     setSelectedUser,
     addContact,
+    subscribeToMessages,
+    unsubscribeFromMessages,
   } = useChatStore();
 
   const { onlineUsers } = useAuthStore();
@@ -23,9 +25,35 @@ const Sidebar = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    getContacts();
-    getUsers();
-  }, [getContacts, getUsers]);
+    const initialize = async () => {
+      await getContacts();
+      await getUsers();
+      subscribeToMessages();
+    };
+
+    initialize();
+
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, []); // Remove the dependencies since we're managing updates through state
+
+  // Move the filtering and sorting logic into a useMemo to optimize performance
+  const sortedFilteredContacts = useMemo(() => {
+    const filtered = showOnlineOnly
+      ? contacts.filter((contact) => onlineUsers.includes(contact._id))
+      : contacts;
+
+    return filtered.sort((a, b) => {
+      const aLastMessageTime = a.lastMessage
+        ? new Date(a.lastMessage.createdAt).getTime()
+        : 0;
+      const bLastMessageTime = b.lastMessage
+        ? new Date(b.lastMessage.createdAt).getTime()
+        : 0;
+      return bLastMessageTime - aLastMessageTime;
+    });
+  }, [contacts, showOnlineOnly, onlineUsers]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -36,10 +64,6 @@ const Sidebar = () => {
     setSearchResults(results);
     setIsSearching(false);
   };
-
-  const filteredUsers = showOnlineOnly
-    ? contacts.filter((contact) => onlineUsers.includes(contact._id))
-    : contacts;
 
   if (isContactsLoading) return <SidebarSkeleton />;
 
@@ -148,7 +172,7 @@ const Sidebar = () => {
       </div>
 
       <div className="overflow-y-auto w-full py-3">
-        {filteredUsers.map((user) => (
+        {sortedFilteredContacts.map((user) => (
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
@@ -186,7 +210,7 @@ const Sidebar = () => {
           </button>
         ))}
 
-        {filteredUsers.length === 0 && (
+        {sortedFilteredContacts.length === 0 && (
           <div className="text-center text-zinc-500 py-4">No online users</div>
         )}
       </div>
