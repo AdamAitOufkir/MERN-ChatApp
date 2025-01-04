@@ -3,10 +3,44 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
+import { useSound } from "../hooks/useSound";
 
 const VideoCall = () => {
   const { authUser } = useAuthStore();
   const { currentCall, endCall } = useChatStore();
+  const { playSound } = useSound();
+  const socket = useAuthStore((state) => state.socket);
+
+  useEffect(() => {
+    if (!currentCall || !socket) return;
+
+    // Listen for other user's actions
+    socket.on("userJoinedCall", () => {
+      playSound("join");
+    });
+
+    socket.on("userLeftCall", () => {
+      playSound("leave");
+    });
+
+    // Notify other user when joining
+    socket.emit("userJoinedCall", {
+      to: currentCall.isInitiator
+        ? currentCall.roomId.split("-")[0]
+        : currentCall.from,
+    });
+
+    return () => {
+      // Notify other user when leaving
+      socket.emit("userLeftCall", {
+        to: currentCall.isInitiator
+          ? currentCall.roomId.split("-")[0]
+          : currentCall.from,
+      });
+      socket.off("userJoinedCall");
+      socket.off("userLeftCall");
+    };
+  }, [currentCall]);
 
   useEffect(() => {
     if (!currentCall) return;

@@ -229,6 +229,18 @@ export const useChatStore = create((set, get) => ({
             toast.error("Call was rejected");
         });
 
+        socket.on("otherUserJoined", ({ roomId }) => {
+            if (get().currentCall?.roomId === roomId) {
+                // User already in call, sound will be handled by VideoCall component
+            }
+        });
+
+        socket.on("otherUserLeft", ({ roomId }) => {
+            if (get().currentCall?.roomId === roomId) {
+                // User already in call, sound will be handled by VideoCall component
+            }
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");

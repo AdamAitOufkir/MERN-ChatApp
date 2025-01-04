@@ -27,6 +27,17 @@ const App = () => {
     checkAuth();
   }, [checkAuth]);
 
+  useEffect(() => {
+    if (incomingCall) {
+      // Make sure audio can play
+      document.addEventListener("click", function initAudio() {
+        const audio = new Audio();
+        audio.play().catch(() => {});
+        document.removeEventListener("click", initAudio);
+      });
+    }
+  }, [incomingCall]);
+
   if (isCheckingAuth && !authUser)
     return (
       <div className="bg-base-100 flex items-center justify-center h-screen">
@@ -58,6 +69,7 @@ const App = () => {
       </Routes>
       {incomingCall && (
         <CallNotification
+          key={incomingCall.roomId} // Add key to force remount
           callData={incomingCall}
           onAccept={() => acceptCall(incomingCall)}
           onReject={() => rejectCall(incomingCall)}

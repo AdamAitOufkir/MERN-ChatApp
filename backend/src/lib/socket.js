@@ -78,6 +78,34 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("userJoinedCall", ({ to }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("userJoinedCall");
+        }
+    });
+
+    socket.on("userLeftCall", ({ to }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("userLeftCall");
+        }
+    });
+
+    socket.on("userJoinedCall", ({ to, roomId }) => {
+        const otherUserSocketId = getReceiverSocketId(to);
+        if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("otherUserJoined", { roomId });
+        }
+    });
+
+    socket.on("userLeftCall", ({ to, roomId }) => {
+        const otherUserSocketId = getReceiverSocketId(to);
+        if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("otherUserLeft", { roomId });
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 

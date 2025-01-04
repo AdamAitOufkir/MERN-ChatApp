@@ -5,12 +5,14 @@ import { useState } from "react";
 import Profile from "./Profile";
 import VideoCall from "./VideoCall";
 import toast from "react-hot-toast";
+import { useSound } from "../hooks/useSound";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, initiateCall, currentCall } =
     useChatStore();
   const { onlineUsers } = useAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { playSound } = useSound();
 
   const handleCall = async (isVideo) => {
     try {
@@ -20,6 +22,7 @@ const ChatHeader = () => {
       });
 
       initiateCall(selectedUser._id, isVideo);
+      playSound("outgoing", true); // Play outgoing call sound in loop
     } catch (err) {
       toast.error(
         "Failed to access camera/microphone. Please grant permissions.",
@@ -48,7 +51,7 @@ const ChatHeader = () => {
               </div>
             </div>
             <div
-              className="w-96 cursor-pointer"
+              className="lg:w-96 md:w-80  cursor-pointer"
               onClick={() => setIsProfileOpen(true)}
             >
               <h3 className="font-medium">{selectedUser.fullName}</h3>
