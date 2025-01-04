@@ -49,6 +49,35 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("initiateCall", ({ to, isVideoCall, roomId }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            console.log(`Sending call request to ${to} (Socket: ${receiverSocketId})`);
+            io.to(receiverSocketId).emit("incomingCall", {
+                from: userId,
+                isVideoCall,
+                roomId
+            });
+        } else {
+            socket.emit("callRejected"); // User is offline
+        }
+    });
+
+    socket.on("acceptCall", ({ to, roomId }) => {
+        const callerSocketId = getReceiverSocketId(to);
+        if (callerSocketId) {
+            console.log(`Call accepted by ${userId}, notifying caller ${to}`);
+            io.to(callerSocketId).emit("callAccepted", { roomId });
+        }
+    });
+
+    socket.on("rejectCall", ({ to }) => {
+        const callerSocketId = getReceiverSocketId(to);
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("callRejected");
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 

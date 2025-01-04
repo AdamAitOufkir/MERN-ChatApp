@@ -12,6 +12,8 @@ export const useChatStore = create((set, get) => ({
     isUsersLoading: false,
     isContactsLoading: false,
     isMessagesLoading: false,
+    incomingCall: null,
+    currentCall: null,
 
     getUsers: async () => {
         set({ isUsersLoading: true });
@@ -158,6 +160,9 @@ export const useChatStore = create((set, get) => ({
 
         socket.off("newMessage");
         socket.off("messagesSeen");
+        socket.off("incomingCall");
+        socket.off("callAccepted");
+        socket.off("callRejected");
 
         socket.on("newMessage", (newMessage) => {
             const { selectedUser, messages, contacts } = get();
@@ -205,6 +210,25 @@ export const useChatStore = create((set, get) => ({
             set({ messages: updatedMessages });
         });
 
+        socket.on("incomingCall", (callData) => {
+            get().handleIncomingCall(callData);
+        });
+
+        socket.on("callAccepted", ({ roomId }) => {
+            set({
+                currentCall: {
+                    roomId,
+                    isVideoCall: get().currentCall?.isVideoCall,
+                    isInitiator: true
+                }
+            });
+        });
+
+        socket.on("callRejected", () => {
+            set({ currentCall: null });
+            toast.error("Call was rejected");
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -218,6 +242,9 @@ export const useChatStore = create((set, get) => ({
             socket.off("newMessage");
             socket.off("connect");
             socket.off("messagesSeen");
+            socket.off("incomingCall");
+            socket.off("callAccepted");
+            socket.off("callRejected");
         }
     },
 
@@ -245,6 +272,53 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
             await get().getMessages(selectedUser._id);
         }
+    },
+
+    initiateCall: async (userId, isVideoCall) => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
+
+        const roomId = `${userId}-${Date.now()}`;
+        set({ currentCall: { roomId, isVideoCall, isInitiator: true } });
+
+        socket.emit("initiateCall", {
+            to: userId,
+            isVideoCall,
+            roomId
+        });
+    },
+
+    handleIncomingCall: (callData) => {
+        set({ incomingCall: callData });
+    },
+
+    acceptCall: (callData) => {
+        set({
+            currentCall: {
+                roomId: callData.roomId,
+                isVideoCall: callData.isVideoCall,
+                isInitiator: false
+            },
+            incomingCall: null
+        });
+
+        const socket = useAuthStore.getState().socket;
+        socket.emit("acceptCall", {
+            to: callData.from,
+            roomId: callData.roomId
+        });
+    },
+
+    rejectCall: (callData) => {
+        set({ incomingCall: null });
+        const socket = useAuthStore.getState().socket;
+        socket.emit("rejectCall", {
+            to: callData.from
+        });
+    },
+
+    endCall: () => {
+        set({ currentCall: null });
     },
 
 }))
