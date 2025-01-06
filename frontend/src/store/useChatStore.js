@@ -225,6 +225,24 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
         });
 
+        socket.on("messageDeleted", ({ messageId }) => {
+            const { messages, contacts, selectedUser } = get();
+            
+            // Remove the deleted message from messages state
+            const updatedMessages = messages.filter((msg) => msg._id !== messageId);
+            set({ messages: updatedMessages });
+    
+            // Update the lastMessage in contacts if it matches the deleted message
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === selectedUser?._id) {
+                    const lastMessage = updatedMessages[updatedMessages.length - 1] || null;
+                    return { ...contact, lastMessage };
+                }
+                return contact;
+            });
+            set({ contacts: updatedContacts });
+        });
+
         socket.on("messagesSeen", ({ receiverId }) => {
             const { messages } = get();
             const updatedMessages = messages.map(msg => {
