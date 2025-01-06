@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { X } from "lucide-react";
+import { Forward, X } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 
 const ChatContainer = () => {
@@ -17,11 +17,18 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    contacts,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const [previewImage, setPreviewImage] = useState(null); // State for preview modal
   const [visibleDropdown, setVisibleDropdown] = useState(null);
+  const [userDropdown, setUserDropdown] = useState(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(null);
+
+  const toggleUserDropdown = (messageId) => {
+    setUserDropdown((prev) => (prev === messageId ? null : messageId));
+  };
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -101,10 +108,19 @@ const ChatContainer = () => {
               </div>
             </div>
             <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
-                {formatMessageTime(message.createdAt)}
-              </time>
+              {message.transferred && (
+                <div className="text-sm text-gray-500 italic">
+                  <p className="italic font-thin ml-1 flex items-center">
+                    <Forward />
+                    Forwarded
+                  </p>
+                  <time className="text-xs opacity-50 ml-1">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </div>
+              )}
             </div>
+
             <div
               className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
@@ -129,7 +145,7 @@ const ChatContainer = () => {
                   {message.text}
                 </p>
               )}
-              {message.senderId === authUser._id && (
+              {message.senderId === authUser._id ? (
                 <>
                   {/* Chevron Down Button */}
                   <button
@@ -148,6 +164,44 @@ const ChatContainer = () => {
                       <li>
                         <button
                           onClick={(e) => {
+                            e.stopPropagation(); // Prevent parent click events
+                            setShowUserDropdown((prev) =>
+                              prev === message._id ? null : message._id
+                            );
+                          }}
+                          className="block px-4 py-2 text-sm text-blue-500 hover:bg-base-300"
+                        >
+                          Transfer
+                        </button>
+
+                        {/* Show dropdown only if this message's dropdown is active */}
+                        {showUserDropdown === message._id && (
+                          <ul className="absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50">
+                            {contacts.map((contact) => (
+                              <li key={contact._id}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowUserDropdown(null); // Close dropdown after selection
+                                    useChatStore
+                                      .getState()
+                                      .transferMessage(
+                                        message._id,
+                                        contact._id
+                                      ); // Transfer message
+                                  }}
+                                  className="block px-4 py-2 text-sm hover:bg-base-300 text-base-content"
+                                >
+                                  {contact.fullName}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                      <li>
+                        <button
+                          onClick={(e) => {
                             e.stopPropagation();
                             setVisibleDropdown(null);
                             useChatStore.getState().deleteMessage(message._id);
@@ -156,6 +210,63 @@ const ChatContainer = () => {
                         >
                           Delete
                         </button>
+                      </li>
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Chevron Down Button */}
+                  <button
+                    onClick={() => toggleDropdown(message._id)}
+                    className="absolute top-2 right-2 hidden group-hover:inline-block btn btn-sm btn-ghost p-0 m-0"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown */}
+                  {visibleDropdown === message._id && (
+                    <ul
+                      className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <li>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent parent click events
+                            setShowUserDropdown((prev) =>
+                              prev === message._id ? null : message._id
+                            );
+                          }}
+                          className="block px-4 py-2 text-sm text-blue-500 hover:bg-base-300"
+                        >
+                          Transfer
+                        </button>
+
+                        {/* Show dropdown only if this message's dropdown is active */}
+                        {showUserDropdown === message._id && (
+                          <ul className="absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50">
+                            {contacts.map((contact) => (
+                              <li key={contact._id}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowUserDropdown(null); // Close dropdown after selection
+                                    useChatStore
+                                      .getState()
+                                      .transferMessage(
+                                        message._id,
+                                        contact._id
+                                      ); // Transfer message
+                                  }}
+                                  className="block px-4 py-2 text-sm hover:bg-base-300 text-base-content"
+                                >
+                                  {contact.fullName}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </li>
                     </ul>
                   )}
@@ -195,7 +306,7 @@ const ChatContainer = () => {
           />
           <button
             className="absolute top-4 right-4 text-white text-3xl font-bold"
-            onClick={closeModal}
+            onClick={closeModal}  
           >
             <X />
           </button>

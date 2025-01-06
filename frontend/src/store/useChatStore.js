@@ -141,6 +141,37 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
+    transferMessage: async (messageId, targetUserId) => {
+        try {
+          const res = await axiosInstance.post("/messages/transfer", {
+            messageId,
+            targetUserId,
+          });
+      
+          const transferredMessage = res.data;
+      
+          // Update the target user's chat in contacts
+          const { contacts } = get();
+          const updatedContacts = contacts.map((contact) => {
+            if (contact._id === targetUserId) {
+              return {
+                ...contact,
+                lastMessage: transferredMessage,
+                messages: [...(contact.messages || []), transferredMessage],
+              };
+            }
+            return contact;
+          });
+      
+          set({ contacts: updatedContacts });
+      
+          toast.success("Message transferred successfully!");
+        } catch (error) {
+          toast.error(error.response?.data?.message || "Failed to transfer message");
+        }
+      },
+      
+
     updateMessagesSeen: (receiverId) => {
         const { messages } = get();
         const updatedMessages = messages.map(msg => {
