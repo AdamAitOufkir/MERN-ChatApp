@@ -143,34 +143,41 @@ export const useChatStore = create((set, get) => ({
 
     transferMessage: async (messageId, targetUserId) => {
         try {
-          const res = await axiosInstance.post("/messages/transfer", {
-            messageId,
-            targetUserId,
-          });
-      
-          const transferredMessage = res.data;
-      
-          // Update the target user's chat in contacts
-          const { contacts } = get();
-          const updatedContacts = contacts.map((contact) => {
-            if (contact._id === targetUserId) {
-              return {
-                ...contact,
-                lastMessage: transferredMessage,
-                messages: [...(contact.messages || []), transferredMessage],
-              };
+            const { contacts, selectedUser, messages } = get();
+            const res = await axiosInstance.post("/messages/transfer", {
+                messageId,
+                targetUserId,
+            });
+
+            const transferredMessage = res.data;
+
+            // Update both the contacts list and current messages
+            const updatedContacts = contacts.map((contact) => {
+                if (contact._id === targetUserId) {
+                    return {
+                        ...contact,
+                        lastMessage: transferredMessage,
+                        messages: [...(contact.messages || []), transferredMessage],
+                    };
+                }
+                return contact;
+            });
+
+            // If we're in the chat with the target user, add the message to current messages
+            if (selectedUser?._id === targetUserId) {
+                set({
+                    messages: [...messages, transferredMessage],
+                    contacts: updatedContacts
+                });
+            } else {
+                set({ contacts: updatedContacts });
             }
-            return contact;
-          });
-      
-          set({ contacts: updatedContacts });
-      
-          toast.success("Message transferred successfully!");
+
+            toast.success("Message transferred successfully!");
         } catch (error) {
-          toast.error(error.response?.data?.message || "Failed to transfer message");
+            toast.error(error.response?.data?.message || "Failed to transfer message");
         }
-      },
-      
+    },
 
     updateMessagesSeen: (receiverId) => {
         const { messages } = get();
@@ -189,6 +196,7 @@ export const useChatStore = create((set, get) => ({
 
         socket.off("newMessage");
         socket.off("messagesSeen");
+        socket.off("messageTransferred"); // Add this line
 
         socket.on("newMessage", (newMessage) => {
             const { selectedUser, messages, contacts } = get();
@@ -227,11 +235,11 @@ export const useChatStore = create((set, get) => ({
 
         socket.on("messageDeleted", ({ messageId }) => {
             const { messages, contacts, selectedUser } = get();
-            
+
             // Remove the deleted message from messages state
             const updatedMessages = messages.filter((msg) => msg._id !== messageId);
             set({ messages: updatedMessages });
-    
+
             // Update the lastMessage in contacts if it matches the deleted message
             const updatedContacts = contacts.map(contact => {
                 if (contact._id === selectedUser?._id) {
@@ -254,6 +262,24 @@ export const useChatStore = create((set, get) => ({
             set({ messages: updatedMessages });
         });
 
+        socket.on("messageTransferred", ({ newMessage, targetUserId }) => {
+            const { contacts } = get();
+
+            // Update the contacts list to show the transferred message
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === targetUserId) {
+                    return {
+                        ...contact,
+                        lastMessage: newMessage,
+                        messages: [...(contact.messages || []), newMessage]
+                    };
+                }
+                return contact;
+            });
+
+            set({ contacts: updatedContacts });
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -267,6 +293,7 @@ export const useChatStore = create((set, get) => ({
             socket.off("newMessage");
             socket.off("connect");
             socket.off("messagesSeen");
+            socket.off("messageTransferred"); // Add this line
         }
     },
 

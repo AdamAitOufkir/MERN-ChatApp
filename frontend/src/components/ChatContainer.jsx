@@ -6,7 +6,7 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { Forward, X } from "lucide-react";
+import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 
 const ChatContainer = () => {
@@ -23,12 +23,12 @@ const ChatContainer = () => {
   const messageEndRef = useRef(null);
   const [previewImage, setPreviewImage] = useState(null); // State for preview modal
   const [visibleDropdown, setVisibleDropdown] = useState(null);
-  const [userDropdown, setUserDropdown] = useState(null);
-  const [showUserDropdown, setShowUserDropdown] = useState(null);
-
-  const toggleUserDropdown = (messageId) => {
-    setUserDropdown((prev) => (prev === messageId ? null : messageId));
-  };
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+  const dropdownRef = useRef(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -66,11 +66,136 @@ const ChatContainer = () => {
     };
   }, [visibleDropdown]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setSearchQuery("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const toggleDropdown = (messageId) => {
     setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
   };
 
   const closeModal = () => setPreviewImage(null); // Close modal function
+
+  const filteredContacts = contacts.filter((contact) =>
+    contact.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleTransferClick = (messageId) => {
+    setSelectedMessageId(messageId);
+    setShowTransferModal(true);
+    setVisibleDropdown(null);
+    setSearchQuery("");
+  };
+
+  const messageDropdown = (message) => (
+    <ul className="deletebutton absolute right-0 mt-6 w-48 bg-base-200 shadow-lg rounded-lg py-2 z-50">
+      <li>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTransferClick(message._id);
+          }}
+          className="block px-4 py-2 text-sm text-blue-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+        >
+          <span>Transfer Message</span>
+          <Forward className="w-4 h-4 text-blue-600" />
+        </button>
+      </li>
+      <li>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setVisibleDropdown(null);
+            useChatStore.getState().deleteMessage(message._id);
+          }}
+          className="block px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+        >
+          <span>Delete Message</span>
+          <Trash2 className="w-4 h-4 text-red-600" />
+        </button>
+      </li>
+    </ul>
+  );
+
+  const TransferModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div
+        ref={modalRef}
+        className="bg-base-200 rounded-2xl w-full max-w-md mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-base-300 flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Transfer Message</h3>
+          <button
+            onClick={() => setShowTransferModal(false)}
+            className="btn btn-ghost btn-sm btn-circle"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="relative mb-4">
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              className="input input-bordered w-full pr-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto">
+            {filteredContacts.length === 0 ? (
+              <div className="text-center py-8 text-base-content/70">
+                No contacts found
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredContacts.map((contact) => (
+                  <button
+                    key={contact._id}
+                    disabled={isTransferring}
+                    onClick={async () => {
+                      setIsTransferring(true);
+                      try {
+                        await useChatStore
+                          .getState()
+                          .transferMessage(selectedMessageId, contact._id);
+                        setShowTransferModal(false);
+                        setSearchQuery("");
+                      } finally {
+                        setIsTransferring(false);
+                      }
+                    }}
+                    className="flex items-center gap-3 w-full p-3 hover:bg-base-300 rounded-lg transition-colors"
+                  >
+                    <img
+                      src={contact.profilePic || "/avatar.png"}
+                      alt={contact.fullName}
+                      className="w-10 h-10 rounded-full"
+                    />
+                    <div className="flex-1 text-left">
+                      <div className="font-medium">{contact.fullName}</div>
+                    </div>
+                    <Send className="w-4 h-4 text-base-content/50" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (isMessagesLoading) {
     return (
@@ -156,63 +281,7 @@ const ChatContainer = () => {
                   </button>
 
                   {/* Dropdown */}
-                  {visibleDropdown === message._id && (
-                    <ul
-                      className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <li>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent parent click events
-                            setShowUserDropdown((prev) =>
-                              prev === message._id ? null : message._id
-                            );
-                          }}
-                          className="block px-4 py-2 text-sm text-blue-500 hover:bg-base-300"
-                        >
-                          Transfer
-                        </button>
-
-                        {/* Show dropdown only if this message's dropdown is active */}
-                        {showUserDropdown === message._id && (
-                          <ul className="absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50">
-                            {contacts.map((contact) => (
-                              <li key={contact._id}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowUserDropdown(null); // Close dropdown after selection
-                                    useChatStore
-                                      .getState()
-                                      .transferMessage(
-                                        message._id,
-                                        contact._id
-                                      ); // Transfer message
-                                  }}
-                                  className="block px-4 py-2 text-sm hover:bg-base-300 text-base-content"
-                                >
-                                  {contact.fullName}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                      <li>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setVisibleDropdown(null);
-                            useChatStore.getState().deleteMessage(message._id);
-                          }}
-                          className="block px-4 py-2 text-sm text-red-500 hover:bg-base-300"
-                        >
-                          Delete
-                        </button>
-                      </li>
-                    </ul>
-                  )}
+                  {visibleDropdown === message._id && messageDropdown(message)}
                 </>
               ) : (
                 <>
@@ -225,51 +294,7 @@ const ChatContainer = () => {
                   </button>
 
                   {/* Dropdown */}
-                  {visibleDropdown === message._id && (
-                    <ul
-                      className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <li>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent parent click events
-                            setShowUserDropdown((prev) =>
-                              prev === message._id ? null : message._id
-                            );
-                          }}
-                          className="block px-4 py-2 text-sm text-blue-500 hover:bg-base-300"
-                        >
-                          Transfer
-                        </button>
-
-                        {/* Show dropdown only if this message's dropdown is active */}
-                        {showUserDropdown === message._id && (
-                          <ul className="absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50">
-                            {contacts.map((contact) => (
-                              <li key={contact._id}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowUserDropdown(null); // Close dropdown after selection
-                                    useChatStore
-                                      .getState()
-                                      .transferMessage(
-                                        message._id,
-                                        contact._id
-                                      ); // Transfer message
-                                  }}
-                                  className="block px-4 py-2 text-sm hover:bg-base-300 text-base-content"
-                                >
-                                  {contact.fullName}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    </ul>
-                  )}
+                  {visibleDropdown === message._id && messageDropdown(message)}
                 </>
               )}
             </div>
@@ -292,6 +317,9 @@ const ChatContainer = () => {
 
       <MessageInput />
 
+      {/* Transfer Modal */}
+      {showTransferModal && <TransferModal />}
+
       {/* Image Preview Modal */}
       {previewImage && (
         <div
@@ -306,7 +334,7 @@ const ChatContainer = () => {
           />
           <button
             className="absolute top-4 right-4 text-white text-3xl font-bold"
-            onClick={closeModal}  
+            onClick={closeModal}
           >
             <X />
           </button>

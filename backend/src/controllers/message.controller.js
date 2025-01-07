@@ -153,6 +153,7 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 export const transferMessage = async (req, res) => {
   try {
     const { messageId, targetUserId } = req.body;
@@ -181,6 +182,7 @@ export const transferMessage = async (req, res) => {
 
     await newMessage.save();
 
+    // Emit to target user
     const targetSocketId = getReceiverSocketId(targetUserId);
     if (targetSocketId) {
       io.to(targetSocketId).emit("newMessage", newMessage);
