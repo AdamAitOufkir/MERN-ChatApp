@@ -1,34 +1,20 @@
-import Navbar from "./components/Navbar";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
-import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
-import { useAuthStore } from "./store/useAuthStore";
-import { useEffect } from "react";
-import { Loader } from "lucide-react";
+import ProfilePage from "./pages/ProfilePage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
+import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
+
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
+  const { authUser } = useAuthStore();
   const { theme } = useThemeStore();
-
-  useEffect(() => {
-    const root = document.documentElement; // Access the <html> element
-    root.setAttribute("data-theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  if (isCheckingAuth && !authUser)
-    return (
-      <div className="bg-base-100 flex items-center justify-center h-screen">
-        <Loader className="size-10 animate-spin text-primary" />
-      </div>
-    );
 
   return (
     <div data-theme={theme}>
@@ -50,6 +36,19 @@ const App = () => {
         <Route
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
+        />
+        {/* New Routes */}
+        <Route
+          path="/verify-email/:token"
+          element={!authUser ? <VerifyEmailPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/forgot-password"
+          element={!authUser ? <ForgotPasswordPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/reset-password/:token"
+          element={!authUser ? <ResetPasswordPage /> : <Navigate to="/" />}
         />
       </Routes>
       <Toaster />

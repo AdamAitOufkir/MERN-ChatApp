@@ -42,10 +42,8 @@ const LoginPage = () => {
               >
                 <MessageSquare className="size-6 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold mt-2">Create Account</h1>
-              <p className="text-base-content/60">
-                Get started with your free account
-              </p>
+              <h1 className="text-2xl font-bold mt-2">Welcome back</h1>
+              <p className="text-base-content/60">Log in to start chatting</p>
             </div>
           </div>
 
@@ -119,9 +117,18 @@ const LoginPage = () => {
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Dont have an account?
+              Dont have an account ?&nbsp;
               <Link to="/signup" className="link link-primary">
                 Sign up
+              </Link>
+            </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-base-content/60">
+              Forgot password ?&nbsp;
+              <Link to="/forgot-password" className="link link-primary">
+                Reset password
               </Link>
             </p>
           </div>
