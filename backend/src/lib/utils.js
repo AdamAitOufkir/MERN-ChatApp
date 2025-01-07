@@ -14,3 +14,20 @@ export const generateToken = (userId, res) => {
 
   return token;
 };
+
+export const validateEmail = async (email) => {
+  try {
+    const response = await fetch(
+      `https://emailvalidation.abstractapi.com/v1/?api_key=${process.env.EMAIL_VALIDATION_API_KEY}&email=${email}`
+    );
+    const data = await response.json();
+
+    // Check if email is deliverable and has valid format
+    return data.deliverability === "DELIVERABLE" && data.is_valid_format.value;
+  } catch (error) {
+    console.error("Error validating email:", error);
+    // If the service fails, fallback to basic regex validation
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    return emailRegex.test(email);
+  }
+};

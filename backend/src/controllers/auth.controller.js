@@ -1,5 +1,5 @@
 import cloudinary from "../lib/cloudinary.js";
-import { generateToken } from "../lib/utils.js";
+import { generateToken, validateEmail } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email.js";
@@ -10,6 +10,18 @@ export const signup = async (req, res) => {
   try {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Add email format validation
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    // Validate if email is real
+    const isValidEmail = await validateEmail(email);
+    if (!isValidEmail) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
     }
 
     const user = await User.findOne({ email });
