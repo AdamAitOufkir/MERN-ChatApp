@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
-import { Loader } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const VerifyEmailPage = () => {
   const { token } = useParams();
@@ -26,7 +26,7 @@ const VerifyEmailPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center w-[100vw]">
-      <Loader className="text-primary" />
+      <Loader2 className="size-5 animate-spin text-primary" />
     </div>
   );
 };
