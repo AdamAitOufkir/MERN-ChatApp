@@ -47,6 +47,7 @@ const VideoCall = () => {
 
     const requestPermissions = async () => {
       try {
+        // Always request both audio and video permissions, regardless of call type
         await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
@@ -97,9 +98,20 @@ const VideoCall = () => {
         },
         turnOnCameraWhenJoining: currentCall.isVideoCall,
         turnOnMicrophoneWhenJoining: true,
-        showPreJoinView: false,
+        showPreJoinView: true, // Show prejoin view to ensure devices are initialized
         preJoinViewConfig: {
           title: currentCall.isVideoCall ? "Video Call" : "Voice Call",
+        },
+        videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_720P,
+        useFrontFacingCamera: true,
+        showNonVideoUser: true,
+        showOnlyAudioUser: true,
+        // Device error handling
+        onErrorDevice: (errorCode) => {
+          if (errorCode === 1001 || errorCode === 1002) {
+            // Request permissions again if denied
+            requestPermissions();
+          }
         },
       });
     };
