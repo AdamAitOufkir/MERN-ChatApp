@@ -14,6 +14,48 @@ export const useAuthStore = create((set, get) => ({
     onlineUsers: [],
     socket: null,
     addingContact: false,
+    isVerifyingEmail: false,
+    isSendingResetEmail: false,
+    isResettingPassword: false,
+
+    verifyEmail: async (token) => {
+        set({ isVerifyingEmail: true });
+        try {
+            const response = await axiosInstance.get(`/auth/verify/${token}`);
+            // Remove this toast since we'll use the response message in VerifyEmailPage
+            return response.data;
+        } finally {
+            set({ isVerifyingEmail: false });
+        }
+    },
+
+    forgotPassword: async (email) => {
+        set({ isSendingResetEmail: true });
+        try {
+            await axiosInstance.post("/auth/forgot-password", { email });
+            toast.success("Password reset email sent");
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to send reset email");
+            return false;
+        } finally {
+            set({ isSendingResetEmail: false });
+        }
+    },
+
+    resetPassword: async (token, password) => {
+        set({ isResettingPassword: true });
+        try {
+            await axiosInstance.post(`/auth/reset-password/${token}`, { password });
+            toast.success("Password reset successful");
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Password reset failed");
+            return false;
+        } finally {
+            set({ isResettingPassword: false });
+        }
+    },
 
     checkAuth: async () => {
         try {
@@ -33,12 +75,12 @@ export const useAuthStore = create((set, get) => ({
     signup: async (data) => {
         set({ isSigningUp: true })
         try {
-            const res = await axiosInstance.post("/auth/signup", data)
-            set({ authUser: res.data })
-            toast.success("Account created successfully")
-            get().connectSocket() //call connectSocket function
+            await axiosInstance.post("/auth/signup", data)
+            toast.success("Account created successfully. Please check your email to verify your account.")
+            return true
         } catch (error) {
             toast.error(error.response.data.message)
+            return false
         } finally {
             set({ isSigningUp: false })
         }
