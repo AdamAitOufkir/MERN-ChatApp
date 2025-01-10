@@ -32,7 +32,8 @@ export const THEMES = [
     "nord",
     "sunset",
     "zineb",
-    "adam"
+    "adam",
+    "love",
 ];
 
 export const PREVIEW_MESSAGES = [

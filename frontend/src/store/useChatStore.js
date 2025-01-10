@@ -12,6 +12,7 @@ export const useChatStore = create((set, get) => ({
     isUsersLoading: false,
     isContactsLoading: false,
     isMessagesLoading: false,
+    isTyping: false,
 
     getUsers: async () => {
         set({ isUsersLoading: true });
@@ -190,6 +191,8 @@ export const useChatStore = create((set, get) => ({
         set({ messages: updatedMessages });
     },
 
+    setIsTyping: (isTyping) => set({ isTyping }),
+
     subscribeToMessages: () => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
@@ -280,6 +283,14 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
         });
 
+        socket.on("typing", ({ senderId, isTyping }) => {
+            console.log("Received typing event:", { senderId, isTyping }); // Add debug log
+            const { selectedUser } = get();
+            if (selectedUser && senderId === selectedUser._id) {
+                set({ isTyping });
+            }
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -294,6 +305,7 @@ export const useChatStore = create((set, get) => ({
             socket.off("connect");
             socket.off("messagesSeen");
             socket.off("messageTransferred"); // Add this line
+            socket.off("typing"); // Make sure to remove typing listener
         }
     },
 

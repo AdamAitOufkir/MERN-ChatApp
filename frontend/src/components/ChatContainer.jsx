@@ -8,6 +8,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
+import TypingIndicator from "./TypingIndicator";
 
 const ChatContainer = () => {
   const {
@@ -18,6 +19,7 @@ const ChatContainer = () => {
     subscribeToMessages,
     unsubscribeFromMessages,
     contacts,
+    isTyping,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -77,6 +79,11 @@ const ChatContainer = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Add debug log to check typing state
+  useEffect(() => {
+    console.log("Typing state changed:", isTyping);
+  }, [isTyping]);
+
   const toggleDropdown = (messageId) => {
     setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
   };
@@ -102,7 +109,7 @@ const ChatContainer = () => {
             e.stopPropagation();
             handleTransferClick(message._id);
           }}
-          className="block px-4 py-2 text-sm text-blue-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+          className="flex px-4 py-2 text-sm text-blue-600 hover:bg-base-300 w-full text-left items-center justify-between"
         >
           <span>Transfer Message</span>
           <Forward className="w-4 h-4 text-blue-600" />
@@ -115,7 +122,7 @@ const ChatContainer = () => {
             setVisibleDropdown(null);
             useChatStore.getState().deleteMessage(message._id);
           }}
-          className="block px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+          className="px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
         >
           <span>Delete Message</span>
           <Trash2 className="w-4 h-4 text-red-600" />
@@ -313,6 +320,11 @@ const ChatContainer = () => {
             )}
           </div>
         ))}
+        {isTyping && (
+          <div ref={messageEndRef}>
+            <TypingIndicator selectedUser={selectedUser} />
+          </div>
+        )}
       </div>
 
       <MessageInput />

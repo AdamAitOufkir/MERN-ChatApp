@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -8,6 +9,9 @@ const MessageInput = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   const { sendMessage } = useChatStore();
+  const { socket, authUser } = useAuthStore(); // Add authUser here
+  const { selectedUser } = useChatStore();
+  const typingTimeoutRef = useRef(null);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -47,6 +51,43 @@ const MessageInput = () => {
     }
   };
 
+  const emitTyping = (isTyping) => {
+    if (socket && selectedUser && authUser) { // Check for authUser
+      console.log("Emitting typing event:", { isTyping }); // Add debug log
+      socket.emit("typing", {
+        receiverId: selectedUser._id,
+        senderId: authUser._id,
+        isTyping
+      });
+    }
+  };
+
+  const handleTyping = (e) => {
+    setText(e.target.value);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Emit typing start
+    emitTyping(true);
+
+    // Set new timeout to stop typing
+    typingTimeoutRef.current = setTimeout(() => {
+      emitTyping(false);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        emitTyping(false);
+      }
+    };
+  }, [selectedUser?._id]);
+
   return (
     <div className="p-4 w-full">
       {imagePreview && (
@@ -76,7 +117,7 @@ const MessageInput = () => {
             className="w-full input input-bordered rounded-lg input-sm sm:input-md"
             placeholder="Type a message..."
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTyping}
           />
           <input
             type="file"

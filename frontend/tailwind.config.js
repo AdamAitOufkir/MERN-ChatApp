@@ -4,7 +4,19 @@ import daisyui from "daisyui";
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        typing: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-5px)' }
+        }
+      },
+      animation: {
+        'typing1': 'typing 1s ease-in-out infinite',
+        'typing2': 'typing 1s ease-in-out 0.3s infinite',
+        'typing3': 'typing 1s ease-in-out 0.6s infinite'
+      }
+    },
   },
   plugins: [daisyui],
   daisyui: {
@@ -52,6 +64,15 @@ export default {
           "primary": "#9333ea",
           "base-100": "#1c1917",
           "base-200": "#121212",
+        }
+      },
+      {
+        love: {
+          "primary": "#E94057",     // Rouge vif chaleureux
+          "base-100": "#FFF0F3",    // Rose très pâle pour le fond
+          "base-200": "#FFE4E8",    // Rose légèrement plus foncé pour les éléments
+          "primary-content": "#FFFFFF", // Texte blanc sur le rouge primaire
+          "base-content": "#4A4A4A"    // Texte gris foncé pour la lisibilité
         }
       }
     ],
