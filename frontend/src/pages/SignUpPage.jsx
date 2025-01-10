@@ -9,11 +9,12 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 
 const SignUpPage = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -35,11 +36,18 @@ const SignUpPage = () => {
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const success = validateForm();
-    if (success === true) signup(formData);
+    if (success === true) {
+      const signupSuccess = await signup(formData);
+      if (signupSuccess) {
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      }
+    }
   };
 
   return (
@@ -153,9 +161,18 @@ const SignUpPage = () => {
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Already have an account?
+              Already have an account ?&nbsp;
               <Link to="/login" className="link link-primary">
                 Sign in
+              </Link>
+            </p>
+          </div>
+
+          <div className="text-center">
+            <p className="text-base-content/60">
+              Forgot password ?&nbsp;
+              <Link to="/forgot-password" className="link link-primary">
+                Reset password
               </Link>
             </p>
           </div>

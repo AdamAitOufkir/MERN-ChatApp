@@ -14,6 +14,7 @@ export const useChatStore = create((set, get) => ({
     isMessagesLoading: false,
     incomingCall: null,
     currentCall: null,
+    isTyping: false,
 
     getUsers: async () => {
         set({ isUsersLoading: true });
@@ -119,7 +120,7 @@ export const useChatStore = create((set, get) => ({
                 cancelButtonColor: "#d33",
                 confirmButtonText: "Yes, delete it!",
                 customClass: {
-                    popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                    popup: 'bg-base-200 rounded-3xl text-base-content',
                 },
             });
 
@@ -130,7 +131,7 @@ export const useChatStore = create((set, get) => ({
                     title: "Deleted!",
                     text: "The message has been deleted.",
                     customClass: {
-                        popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                        popup: 'bg-base-200 rounded-3xl text-base-content',
                     },
                 });
             }
@@ -140,6 +141,44 @@ export const useChatStore = create((set, get) => ({
                 text: error.response?.data?.message || "Failed to delete the message.",
                 icon: "error",
             });
+        }
+    },
+
+    transferMessage: async (messageId, targetUserId) => {
+        try {
+            const { contacts, selectedUser, messages } = get();
+            const res = await axiosInstance.post("/messages/transfer", {
+                messageId,
+                targetUserId,
+            });
+
+            const transferredMessage = res.data;
+
+            // Update both the contacts list and current messages
+            const updatedContacts = contacts.map((contact) => {
+                if (contact._id === targetUserId) {
+                    return {
+                        ...contact,
+                        lastMessage: transferredMessage,
+                        messages: [...(contact.messages || []), transferredMessage],
+                    };
+                }
+                return contact;
+            });
+
+            // If we're in the chat with the target user, add the message to current messages
+            if (selectedUser?._id === targetUserId) {
+                set({
+                    messages: [...messages, transferredMessage],
+                    contacts: updatedContacts
+                });
+            } else {
+                set({ contacts: updatedContacts });
+            }
+
+            toast.success("Message transferred successfully!");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to transfer message");
         }
     },
 
@@ -154,6 +193,8 @@ export const useChatStore = create((set, get) => ({
         set({ messages: updatedMessages });
     },
 
+    setIsTyping: (isTyping) => set({ isTyping }),
+
     subscribeToMessages: () => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
@@ -163,6 +204,7 @@ export const useChatStore = create((set, get) => ({
         socket.off("incomingCall");
         socket.off("callAccepted");
         socket.off("callRejected");
+        socket.off("messageTransferred"); // Add this line
 
         socket.on("newMessage", (newMessage) => {
             const { selectedUser, messages, contacts } = get();
@@ -193,6 +235,24 @@ export const useChatStore = create((set, get) => ({
                         lastMessage: newMessage,
                         messages: [...(contact.messages || []), newMessage]
                     };
+                }
+                return contact;
+            });
+            set({ contacts: updatedContacts });
+        });
+
+        socket.on("messageDeleted", ({ messageId }) => {
+            const { messages, contacts, selectedUser } = get();
+
+            // Remove the deleted message from messages state
+            const updatedMessages = messages.filter((msg) => msg._id !== messageId);
+            set({ messages: updatedMessages });
+
+            // Update the lastMessage in contacts if it matches the deleted message
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === selectedUser?._id) {
+                    const lastMessage = updatedMessages[updatedMessages.length - 1] || null;
+                    return { ...contact, lastMessage };
                 }
                 return contact;
             });
@@ -241,6 +301,32 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
+
+        socket.on("messageTransferred", ({ newMessage, targetUserId }) => {
+            const { contacts } = get();
+
+            // Update the contacts list to show the transferred message
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === targetUserId) {
+                    return {
+                        ...contact,
+                        lastMessage: newMessage,
+                        messages: [...(contact.messages || []), newMessage]
+                    };
+                }
+                return contact;
+            });
+
+            set({ contacts: updatedContacts });
+        });
+
+        socket.on("typing", ({ senderId, isTyping }) => {
+            const { selectedUser } = get();
+            if (selectedUser && senderId === selectedUser._id) {
+                set({ isTyping });
+            }
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -257,6 +343,8 @@ export const useChatStore = create((set, get) => ({
             socket.off("incomingCall");
             socket.off("callAccepted");
             socket.off("callRejected");
+            socket.off("messageTransferred"); // Add this line
+            socket.off("typing"); // Make sure to remove typing listener
         }
     },
 

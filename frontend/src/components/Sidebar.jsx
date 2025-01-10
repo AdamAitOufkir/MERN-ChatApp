@@ -3,6 +3,7 @@ import { useChatStore } from "../store/useChatStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { UserPlus, Users } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
+import SearchUsersModal from "./SearchUsersModal";
 
 const Sidebar = () => {
   const {
@@ -10,19 +11,15 @@ const Sidebar = () => {
     contacts,
     isContactsLoading,
     getUsers,
-    users,
     selectedUser,
     setSelectedUser,
-    addContact,
     subscribeToMessages,
     unsubscribeFromMessages,
   } = useChatStore();
 
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -55,16 +52,6 @@ const Sidebar = () => {
     });
   }, [contacts, showOnlineOnly, onlineUsers]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    setIsSearching(true);
-    const results = users.filter((user) =>
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setSearchResults(results);
-    setIsSearching(false);
-  };
-
   // Add helper function to count unseen messages
   const getUnseenCount = (contact) => {
     if (!contact.messages || !contact.messages.length) return 0;
@@ -87,8 +74,8 @@ const Sidebar = () => {
           <div className="flex items-center gap-2">
             <Users className="size-6 hidden lg:block" />
             <button
-              className="lg:hidden btn "
-              onClick={() => document.getElementById("my_modal_2").showModal()}
+              className="lg:hidden btn"
+              onClick={() => setIsSearchModalOpen(true)}
             >
               <UserPlus className="size-6" />
             </button>
@@ -98,81 +85,18 @@ const Sidebar = () => {
           <div className="flex items-center gap-2">
             <button
               className="btn hidden lg:flex"
-              onClick={() => document.getElementById("my_modal_2").showModal()}
+              onClick={() => setIsSearchModalOpen(true)}
             >
               <UserPlus className="size-6" />
             </button>
           </div>
         </div>
 
-        <dialog id="my_modal_2" className="modal">
-          <div className="modal-box">
-            <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search users..."
-                className="input input-bordered w-full"
-              />
-              <button type="submit" className="btn">
-                Search
-              </button>
-            </form>
-            {!isSearching && (
-              <ul>
-                {searchResults
-                  .sort((a, b) => {
-                    const aInContacts = contacts.some(
-                      (contact) => contact._id === a._id
-                    );
-                    const bInContacts = contacts.some(
-                      (contact) => contact._id === b._id
-                    );
-                    if (aInContacts && !bInContacts) return -1;
-                    if (!aInContacts && bInContacts) return 1;
-                    return a.fullName.localeCompare(b.fullName);
-                  })
-                  .map((user) => (
-                    <li
-                      key={user._id}
-                      className="flex justify-between items-center mb-2"
-                    >
-                      <div className="relative flex mx-auto lg:mx-0">
-                        <img
-                          src={user.profilePic || "/avatar.png"}
-                          alt={user.name}
-                          className="size-12 object-cover rounded-full"
-                        />
-                        {onlineUsers.includes(user._id) && (
-                          <span
-                            className="absolute bottom-0 right-0 size-3 bg-green-500 
-                rounded-full ring-2 ring-zinc-900"
-                          />
-                        )}
-                        <span className="ml-4 content-center">
-                          {user.fullName}
-                        </span>
-                      </div>
-                      {!contacts.some(
-                        (contact) => contact._id === user._id
-                      ) && (
-                        <button
-                          onClick={() => addContact(user._id)}
-                          className="btn btn-sm"
-                        >
-                          Add to Contacts
-                        </button>
-                      )}
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-          <form method="dialog" className="modal-backdrop">
-            <button>close</button>
-          </form>
-        </dialog>
+        <SearchUsersModal
+          isOpen={isSearchModalOpen}
+          onClose={() => setIsSearchModalOpen(false)}
+        />
+
         {/*filter users*/}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">

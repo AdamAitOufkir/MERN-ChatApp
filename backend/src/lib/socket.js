@@ -48,7 +48,6 @@ io.on("connection", (socket) => {
             console.error("Error marking messages as seen:", error);
         }
     });
-
     socket.on("initiateCall", ({ to, isVideoCall, roomId }) => {
         const receiverSocketId = getReceiverSocketId(to);
         if (receiverSocketId) {
@@ -103,6 +102,13 @@ io.on("connection", (socket) => {
         const otherUserSocketId = getReceiverSocketId(to);
         if (otherUserSocketId) {
             io.to(otherUserSocketId).emit("otherUserLeft", { roomId });
+        }
+    });
+
+    socket.on("typing", ({ receiverId, senderId, isTyping }) => {
+        const receiverSocketId = getReceiverSocketId(receiverId);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("typing", { senderId, isTyping });
         }
     });
 

@@ -153,3 +153,45 @@ export const deleteMessage = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const transferMessage = async (req, res) => {
+  try {
+    const { messageId, targetUserId } = req.body;
+    const senderId = req.user._id;
+
+    const originalMessage = await Message.findById(messageId);
+    if (!originalMessage) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (
+      originalMessage.senderId.toString() !== senderId.toString() &&
+      originalMessage.receiverId.toString() !== senderId.toString()
+    ) {
+      return res.status(403).json({ message: "Unauthorized to transfer this message" });
+    }
+
+    const newMessage = new Message({
+      senderId,
+      receiverId: targetUserId,
+      text: originalMessage.text,
+      image: originalMessage.image,
+      transferred: true,
+      transferredFrom: senderId,
+    });
+
+    await newMessage.save();
+
+    // Emit to target user
+    const targetSocketId = getReceiverSocketId(targetUserId);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("newMessage", newMessage);
+    }
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error("Error in transferMessage:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+

@@ -6,7 +6,8 @@ import {
   sendMessage,
   getUsers,
   deleteMessage,
-  markMessagesAsSeen
+  markMessagesAsSeen,
+  transferMessage
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.get("/:id", protectRoute, getMessages);
 router.delete("/:id", protectRoute, deleteMessage);
 router.post("/send/:id", protectRoute, sendMessage);
 router.post("/seen/:id", protectRoute, markMessagesAsSeen);
+router.post("/transfer",protectRoute,transferMessage)
 
 export default router;

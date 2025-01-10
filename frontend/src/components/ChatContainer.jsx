@@ -6,8 +6,9 @@ import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { X } from "lucide-react";
+import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
+import TypingIndicator from "./TypingIndicator";
 
 const ChatContainer = () => {
   const {
@@ -17,11 +18,19 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    contacts,
+    isTyping,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const [previewImage, setPreviewImage] = useState(null); // State for preview modal
   const [visibleDropdown, setVisibleDropdown] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+  const dropdownRef = useRef(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     getMessages(selectedUser._id);
@@ -35,11 +44,12 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
   ]);
 
+  // Modify the existing useEffect for scrolling
   useEffect(() => {
-    if (messageEndRef.current && messages) {
+    if (messageEndRef.current && (messages || isTyping)) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, isTyping]); // Add isTyping as dependency
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -59,11 +69,169 @@ const ChatContainer = () => {
     };
   }, [visibleDropdown]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setSearchQuery("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Add debug log to check typing state
+  useEffect(() => {
+    console.log("Typing state changed:", isTyping);
+  }, [isTyping]);
+
   const toggleDropdown = (messageId) => {
-    setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
+    setVisibleDropdown((prev) => {
+      const newValue = prev === messageId ? null : messageId;
+      // Add scroll logic when dropdown is opened
+      if (newValue) {
+        setTimeout(() => {
+          const dropdownElement = document.querySelector(".deletebutton");
+          if (dropdownElement) {
+            const dropdownRect = dropdownElement.getBoundingClientRect();
+            const containerElement = document.querySelector(".overflow-y-auto");
+            const containerRect = containerElement.getBoundingClientRect();
+
+            // Check if dropdown extends below container viewport
+            if (dropdownRect.bottom > containerRect.bottom) {
+              containerElement.scrollBy({
+                top: dropdownRect.bottom - containerRect.bottom + 16, // adding padding
+                behavior: "smooth",
+              });
+            }
+          }
+        }, 0);
+      }
+      return newValue;
+    });
   };
 
   const closeModal = () => setPreviewImage(null); // Close modal function
+
+  const filteredContacts = contacts.filter((contact) =>
+    contact.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleTransferClick = (messageId) => {
+    setSelectedMessageId(messageId);
+    setShowTransferModal(true);
+    setVisibleDropdown(null);
+    setSearchQuery("");
+  };
+
+  const messageDropdown = (message) => (
+    <ul
+      className={`deletebutton absolute mt-6 w-48 bg-base-200 shadow-lg rounded-lg py-2 z-50 ${
+        message.senderId === authUser._id ? "right-0" : "left-0"
+      }`}
+    >
+      <li>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTransferClick(message._id);
+          }}
+          className="flex px-4 py-2 text-sm text-blue-600 hover:bg-base-300 w-full text-left items-center justify-between"
+        >
+          <span>Transfer Message</span>
+          <Forward className="w-4 h-4 text-blue-600" />
+        </button>
+      </li>
+      {message.senderId === authUser._id && (
+        <li>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setVisibleDropdown(null);
+              useChatStore.getState().deleteMessage(message._id, false); // added false to prevent success toast
+            }}
+            className="px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+          >
+            <span>Delete Message</span>
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+
+  const TransferModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div
+        ref={modalRef}
+        className="bg-base-200 rounded-2xl w-full max-w-md mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-base-300 flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Transfer Message</h3>
+          <button
+            onClick={() => setShowTransferModal(false)}
+            className="btn btn-ghost btn-sm btn-circle"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="relative mb-4">
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              className="input input-bordered w-full pr-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto">
+            {filteredContacts.length === 0 ? (
+              <div className="text-center py-8 text-base-content/70">
+                No contacts found
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredContacts.map((contact) => (
+                  <button
+                    key={contact._id}
+                    disabled={isTransferring}
+                    onClick={async () => {
+                      setIsTransferring(true);
+                      try {
+                        await useChatStore
+                          .getState()
+                          .transferMessage(selectedMessageId, contact._id);
+                        setShowTransferModal(false);
+                        setSearchQuery("");
+                      } finally {
+                        setIsTransferring(false);
+                      }
+                    }}
+                    className="flex items-center gap-3 w-full p-3 hover:bg-base-300 rounded-lg transition-colors"
+                  >
+                    <img
+                      src={contact.profilePic || "/avatar.png"}
+                      alt={contact.fullName}
+                      className="w-10 h-10 rounded-full"
+                    />
+                    <div className="flex-1 text-left">
+                      <div className="font-medium">{contact.fullName}</div>
+                    </div>
+                    <Send className="w-4 h-4 text-base-content/50" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (isMessagesLoading) {
     return (
@@ -87,6 +255,7 @@ const ChatContainer = () => {
               message.senderId === authUser._id ? "chat-end" : "chat-start"
             }`}
             ref={messageEndRef}
+            data-message-id={message._id}
           >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
@@ -101,10 +270,19 @@ const ChatContainer = () => {
               </div>
             </div>
             <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
-                {formatMessageTime(message.createdAt)}
-              </time>
+              {message.transferred && (
+                <div className="text-sm text-gray-500 italic">
+                  <p className="italic font-thin ml-1 flex items-center">
+                    <Forward />
+                    Forwarded
+                  </p>
+                  <time className="text-xs opacity-50 ml-1">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </div>
+              )}
             </div>
+
             <div
               className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
@@ -129,7 +307,7 @@ const ChatContainer = () => {
                   {message.text}
                 </p>
               )}
-              {message.senderId === authUser._id && (
+              {message.senderId === authUser._id ? (
                 <>
                   {/* Chevron Down Button */}
                   <button
@@ -140,25 +318,20 @@ const ChatContainer = () => {
                   </button>
 
                   {/* Dropdown */}
-                  {visibleDropdown === message._id && (
-                    <ul
-                      className="deletebutton absolute right-0 mt-6 w-40 bg-base-200 shadow-md rounded-lg py-1 z-50"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <li>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setVisibleDropdown(null);
-                            useChatStore.getState().deleteMessage(message._id);
-                          }}
-                          className="block px-4 py-2 text-sm text-red-500 hover:bg-base-300"
-                        >
-                          Delete
-                        </button>
-                      </li>
-                    </ul>
-                  )}
+                  {visibleDropdown === message._id && messageDropdown(message)}
+                </>
+              ) : (
+                <>
+                  {/* Chevron Down Button */}
+                  <button
+                    onClick={() => toggleDropdown(message._id)}
+                    className="absolute top-2 right-2 hidden group-hover:inline-block btn btn-sm btn-ghost p-0 m-0"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown */}
+                  {visibleDropdown === message._id && messageDropdown(message)}
                 </>
               )}
             </div>
@@ -177,9 +350,17 @@ const ChatContainer = () => {
             )}
           </div>
         ))}
+        {isTyping && (
+          <div ref={messageEndRef}>
+            <TypingIndicator selectedUser={selectedUser} />
+          </div>
+        )}
       </div>
 
       <MessageInput />
+
+      {/* Transfer Modal */}
+      {showTransferModal && <TransferModal />}
 
       {/* Image Preview Modal */}
       {previewImage && (
