@@ -88,7 +88,13 @@ const VideoCall = () => {
         maxUsers: 2,
         layout: "Auto",
         showLayoutButton: true,
-        onLeaveRoom: () => endCall(),
+        onLeaveRoom: () => {
+          endCall();
+          // Add a small delay before refreshing to ensure state updates are complete
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
+        },
         turnOnCameraWhenJoining: currentCall.isVideoCall,
         turnOnMicrophoneWhenJoining: true,
         showPreJoinView: false,
