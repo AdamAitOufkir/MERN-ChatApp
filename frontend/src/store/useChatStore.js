@@ -118,7 +118,7 @@ export const useChatStore = create((set, get) => ({
                 cancelButtonColor: "#d33",
                 confirmButtonText: "Yes, delete it!",
                 customClass: {
-                    popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                    popup: 'bg-base-200 rounded-3xl text-base-content',
                 },
             });
 
@@ -129,7 +129,7 @@ export const useChatStore = create((set, get) => ({
                     title: "Deleted!",
                     text: "The message has been deleted.",
                     customClass: {
-                        popup: 'bg-base-200 rounded-3xl text-base-content', // Use DaisyUI utility classes
+                        popup: 'bg-base-200 rounded-3xl text-base-content',
                     },
                 });
             }
@@ -284,7 +284,6 @@ export const useChatStore = create((set, get) => ({
         });
 
         socket.on("typing", ({ senderId, isTyping }) => {
-            console.log("Received typing event:", { senderId, isTyping }); // Add debug log
             const { selectedUser } = get();
             if (selectedUser && senderId === selectedUser._id) {
                 set({ isTyping });

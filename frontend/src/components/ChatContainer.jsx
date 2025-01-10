@@ -44,11 +44,12 @@ const ChatContainer = () => {
     unsubscribeFromMessages,
   ]);
 
+  // Modify the existing useEffect for scrolling
   useEffect(() => {
-    if (messageEndRef.current && messages) {
+    if (messageEndRef.current && (messages || isTyping)) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, isTyping]); // Add isTyping as dependency
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -85,7 +86,29 @@ const ChatContainer = () => {
   }, [isTyping]);
 
   const toggleDropdown = (messageId) => {
-    setVisibleDropdown((prev) => (prev === messageId ? null : messageId));
+    setVisibleDropdown((prev) => {
+      const newValue = prev === messageId ? null : messageId;
+      // Add scroll logic when dropdown is opened
+      if (newValue) {
+        setTimeout(() => {
+          const dropdownElement = document.querySelector(".deletebutton");
+          if (dropdownElement) {
+            const dropdownRect = dropdownElement.getBoundingClientRect();
+            const containerElement = document.querySelector(".overflow-y-auto");
+            const containerRect = containerElement.getBoundingClientRect();
+
+            // Check if dropdown extends below container viewport
+            if (dropdownRect.bottom > containerRect.bottom) {
+              containerElement.scrollBy({
+                top: dropdownRect.bottom - containerRect.bottom + 16, // adding padding
+                behavior: "smooth",
+              });
+            }
+          }
+        }, 0);
+      }
+      return newValue;
+    });
   };
 
   const closeModal = () => setPreviewImage(null); // Close modal function
@@ -102,7 +125,11 @@ const ChatContainer = () => {
   };
 
   const messageDropdown = (message) => (
-    <ul className="deletebutton absolute right-0 mt-6 w-48 bg-base-200 shadow-lg rounded-lg py-2 z-50">
+    <ul
+      className={`deletebutton absolute mt-6 w-48 bg-base-200 shadow-lg rounded-lg py-2 z-50 ${
+        message.senderId === authUser._id ? "right-0" : "left-0"
+      }`}
+    >
       <li>
         <button
           onClick={(e) => {
@@ -115,19 +142,21 @@ const ChatContainer = () => {
           <Forward className="w-4 h-4 text-blue-600" />
         </button>
       </li>
-      <li>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setVisibleDropdown(null);
-            useChatStore.getState().deleteMessage(message._id);
-          }}
-          className="px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
-        >
-          <span>Delete Message</span>
-          <Trash2 className="w-4 h-4 text-red-600" />
-        </button>
-      </li>
+      {message.senderId === authUser._id && (
+        <li>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setVisibleDropdown(null);
+              useChatStore.getState().deleteMessage(message._id, false); // added false to prevent success toast
+            }}
+            className="px-4 py-2 text-sm text-red-600 hover:bg-base-300 w-full text-left flex items-center justify-between"
+          >
+            <span>Delete Message</span>
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </button>
+        </li>
+      )}
     </ul>
   );
 
@@ -226,6 +255,7 @@ const ChatContainer = () => {
               message.senderId === authUser._id ? "chat-end" : "chat-start"
             }`}
             ref={messageEndRef}
+            data-message-id={message._id}
           >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">

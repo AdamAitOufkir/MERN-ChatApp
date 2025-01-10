@@ -11,10 +11,26 @@ import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 const App = () => {
-  const { authUser } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isCheckingAuth) {
+    return (
+      <div data-theme={theme}>
+        <div className="min-h-screen grid place-items-center bg-base-200">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div data-theme={theme}>

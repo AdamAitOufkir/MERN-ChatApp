@@ -52,19 +52,19 @@ const MessageInput = () => {
   };
 
   const emitTyping = (isTyping) => {
-    if (socket && selectedUser && authUser) { // Check for authUser
-      console.log("Emitting typing event:", { isTyping }); // Add debug log
+    if (socket && selectedUser && authUser) {
+      // Check for authUser
       socket.emit("typing", {
         receiverId: selectedUser._id,
         senderId: authUser._id,
-        isTyping
+        isTyping,
       });
     }
   };
 
   const handleTyping = (e) => {
     setText(e.target.value);
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
