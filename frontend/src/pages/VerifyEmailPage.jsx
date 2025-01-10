@@ -25,7 +25,7 @@ const VerifyEmailPage = () => {
   }, [token, navigate, verifyEmail]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center w-[100vw]">
+    <div className="min-h-screen flex items-center justify-center w-[100vw] bg-base-200">
       <Loader2 className="size-5 animate-spin text-primary" />
     </div>
   );

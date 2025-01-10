@@ -83,7 +83,6 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
-        {/* New Routes */}
         <Route
           path="/verify-email/:token"
           element={!authUser ? <VerifyEmailPage /> : <Navigate to="/" />}
