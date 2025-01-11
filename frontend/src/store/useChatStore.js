@@ -57,9 +57,20 @@ export const useChatStore = create((set, get) => ({
         set({ addingContact: true })
         try {
             const { contacts } = get()
-
             const res = await axiosInstance.post(`/auth/add-contact/${contactId}`)
+
+            // Update local contacts list
             set({ contacts: [...contacts, res.data] })
+
+            // Emit socket event to notify the added user
+            const socket = useAuthStore.getState().socket;
+            if (socket?.connected) {
+                socket.emit("contactAdded", {
+                    contactId,
+                    contact: useAuthStore.getState().authUser // Send current user's data
+                });
+            }
+
             toast.success("Contact Added Successfully")
         } catch (error) {
             toast.error(error.response.data.message)
@@ -67,7 +78,6 @@ export const useChatStore = create((set, get) => ({
             set({ addingContact: false })
         }
     },
-
 
     getMessages: async (userId) => {
         try {
@@ -395,6 +405,14 @@ export const useChatStore = create((set, get) => ({
             await get().getContacts();
         });
 
+        socket.on("newContact", ({ contact }) => {
+            const { contacts } = get();
+            // Only add if not already in contacts
+            if (!contacts.find(c => c._id === contact._id)) {
+                set({ contacts: [...contacts, contact] });
+            }
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -415,6 +433,7 @@ export const useChatStore = create((set, get) => ({
             socket.off("typing"); // Make sure to remove typing listener
             socket.off("userBlockedUpdate");
             socket.off("userUnblockedUpdate");
+            socket.off("newContact");
         }
     },
 

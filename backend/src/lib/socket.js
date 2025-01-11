@@ -123,6 +123,14 @@ io.on("connection", (socket) => {
         io.emit("userUnblockedUpdate", { unblockerId, unblockedUserId });
     });
 
+    socket.on("contactAdded", ({ contactId, contact }) => {
+        const receiverSocketId = getReceiverSocketId(contactId);
+        if (receiverSocketId) {
+            // Send the contact info to the other user
+            io.to(receiverSocketId).emit("newContact", { contact });
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 
