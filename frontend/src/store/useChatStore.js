@@ -19,18 +19,22 @@ export const useChatStore = create((set, get) => ({
     getUsers: async () => {
         set({ isUsersLoading: true });
         try {
-            const res = await axiosInstance.get("/messages/users")
-            set({ users: res.data })
+            // Get fresh auth data first to ensure we have updated block lists
+            await useAuthStore.getState().checkAuth();
+            const res = await axiosInstance.get("/messages/users");
+            set({ users: res.data });
         } catch (error) {
-            toast.error(error.response.data.message)
+            toast.error(error.response?.data?.message || "Failed to fetch users");
         } finally {
-            set({ isUsersLoading: false })
+            set({ isUsersLoading: false });
         }
     },
 
     getContacts: async () => {
         set({ isContactsLoading: true });
         try {
+            // Get fresh auth user data to ensure we have updated block lists
+            await useAuthStore.getState().checkAuth();
             const res = await axiosInstance.get("/messages/contacts");
             const contacts = res.data;
 
@@ -66,7 +70,6 @@ export const useChatStore = create((set, get) => ({
 
 
     getMessages: async (userId) => {
-        set({ isMessagesLoading: true })
         try {
             const res = await axiosInstance.get(`/messages/${userId}`)
             set({ messages: res.data })
@@ -86,8 +89,6 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
         } catch (error) {
             toast.error(error.response.data.message)
-        } finally {
-            set({ isMessagesLoading: false })
         }
     },
 
@@ -146,7 +147,18 @@ export const useChatStore = create((set, get) => ({
 
     transferMessage: async (messageId, targetUserId) => {
         try {
-            const { contacts, selectedUser, messages } = get();
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Find target contact and check block status
+            const targetContact = contacts.find(c => c._id === targetUserId);
+            if (targetContact?.blockedUsers?.includes(authUser._id) ||
+                authUser.blockedUsers?.includes(targetUserId)) {
+                toast.error("Cannot transfer message to blocked users");
+                return;
+            }
+
+            const { selectedUser, messages } = get();
             const res = await axiosInstance.post("/messages/transfer", {
                 messageId,
                 targetUserId,
@@ -327,6 +339,62 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
+        socket.on("userBlockedUpdate", ({ blockerId, blockedUserId }) => {
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Update contacts directly without loading state
+            if (authUser._id === blockedUserId) {
+                const updatedContacts = contacts.map(contact => {
+                    if (contact._id === blockerId) {
+                        return {
+                            ...contact,
+                            blockedUsers: [...(contact.blockedUsers || []), authUser._id]
+                        };
+                    }
+                    return contact;
+                });
+                set({ contacts: updatedContacts });
+            }
+        });
+
+        socket.on("userUnblockedUpdate", ({ unblockerId, unblockedUserId }) => {
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Update contacts directly without loading state
+            if (authUser._id === unblockedUserId) {
+                const updatedContacts = contacts.map(contact => {
+                    if (contact._id === unblockerId) {
+                        return {
+                            ...contact,
+                            blockedUsers: (contact.blockedUsers || []).filter(id => id !== authUser._id)
+                        };
+                    }
+                    return contact;
+                });
+                set({ contacts: updatedContacts });
+            }
+        });
+
+        socket.on("userBlockedUpdate", async () => {
+            // Refresh messages and contacts when block status changes
+            const { selectedUser } = get();
+            if (selectedUser) {
+                await get().getMessages(selectedUser._id);
+            }
+            await get().getContacts();
+        });
+
+        socket.on("userUnblockedUpdate", async () => {
+            // Refresh messages and contacts when block status changes
+            const { selectedUser } = get();
+            if (selectedUser) {
+                await get().getMessages(selectedUser._id);
+            }
+            await get().getContacts();
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -345,6 +413,8 @@ export const useChatStore = create((set, get) => ({
             socket.off("callRejected");
             socket.off("messageTransferred"); // Add this line
             socket.off("typing"); // Make sure to remove typing listener
+            socket.off("userBlockedUpdate");
+            socket.off("userUnblockedUpdate");
         }
     },
 
@@ -377,6 +447,18 @@ export const useChatStore = create((set, get) => ({
     initiateCall: async (userId, isVideoCall) => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
+
+        const { authUser } = useAuthStore.getState();
+        const { contacts } = get();
+
+        // Find the contact to check block status
+        const contact = contacts.find(c => c._id === userId);
+
+        if (contact?.blockedUsers?.includes(authUser._id) ||
+            authUser.blockedUsers?.includes(userId)) {
+            toast.error("Cannot initiate call when either user is blocked");
+            return;
+        }
 
         const roomId = `${userId}-${Date.now()}`;
         set({ currentCall: { roomId, isVideoCall, isInitiator: true } });
@@ -420,5 +502,6 @@ export const useChatStore = create((set, get) => ({
     endCall: () => {
         set({ currentCall: null });
     },
+
 
 }))

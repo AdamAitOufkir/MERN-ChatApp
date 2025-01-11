@@ -17,6 +17,8 @@ export const useAuthStore = create((set, get) => ({
     isVerifyingEmail: false,
     isSendingResetEmail: false,
     isResettingPassword: false,
+    blockedUsers: [],
+    isLoadingBlockedUsers: false,
 
     verifyEmail: async (token) => {
         set({ isVerifyingEmail: true });
@@ -126,6 +128,76 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
+    blockUser: async (userId) => {
+        try {
+            await axiosInstance.post(`/auth/block/${userId}`);
+            const currentUser = get().authUser;
+
+            // Update authUser state
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedUsers: [...(currentUser.blockedUsers || []), userId]
+                }
+            });
+
+            // Also update blockedUsers list if it's loaded
+            const { blockedUsers } = get();
+            if (blockedUsers.length > 0) {
+                const blockedUserData = await axiosInstance.get(`/auth/user/${userId}`);
+                set({
+                    blockedUsers: [...blockedUsers, blockedUserData.data]
+                });
+            }
+
+            // Emit socket event
+            get().socket?.emit("userBlocked", {
+                blockedUserId: userId,
+                blockerId: currentUser._id
+            });
+
+            toast.success("User blocked successfully");
+        } catch (error) {
+            toast.error("Failed to block user");
+            console.error(error);
+        }
+    },
+
+    unblockUser: async (userId) => {
+        try {
+            await axiosInstance.post(`/auth/unblock/${userId}`);
+            const currentUser = get().authUser;
+            // Update both authUser.blockedUsers and blockedUsers state
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedUsers: currentUser.blockedUsers.filter(id => id !== userId)
+                },
+                blockedUsers: get().blockedUsers.filter(user => user._id !== userId)
+            });
+            // Emit socket event
+            get().socket?.emit("userUnblocked", {
+                unblockedUserId: userId,
+                unblockerId: currentUser._id
+            });
+            toast.success("User unblocked successfully");
+        } catch (error) {
+            toast.error("Failed to unblock user", error);
+        }
+    },
+
+    getBlockedUsers: async () => {
+        set({ isLoadingBlockedUsers: true });
+        try {
+            const res = await axiosInstance.get("/auth/blocked-users");
+            set({ blockedUsers: res.data });
+        } catch (error) {
+            toast.error("Failed to fetch blocked users", error);
+        } finally {
+            set({ isLoadingBlockedUsers: false });
+        }
+    },
+
     connectSocket: () => {
         const { authUser } = get()
         {/* dont connect to socket if user is not authentified or is already authentified*/ }
@@ -144,6 +216,35 @@ export const useAuthStore = create((set, get) => ({
         socket.on("getOnlineUsers", (userIds) => {
             set({ onlineUsers: userIds })
         })
+
+        socket.on("userBlockedUpdate", ({ blockerId }) => {
+            const currentUser = get().authUser;
+            if (!currentUser) return;
+
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedByUsers: [...(currentUser.blockedByUsers || []), blockerId]
+                }
+            });
+
+            // Refresh blocked users list if it's loaded
+            if (get().blockedUsers.length > 0) {
+                get().getBlockedUsers();
+            }
+        });
+
+        socket.on("userUnblockedUpdate", ({ unblockerId }) => {
+            const currentUser = get().authUser;
+            if (!currentUser) return;
+
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedByUsers: (currentUser.blockedByUsers || []).filter(id => id !== unblockerId)
+                }
+            });
+        });
     },
 
     disconnectSocket: () => {

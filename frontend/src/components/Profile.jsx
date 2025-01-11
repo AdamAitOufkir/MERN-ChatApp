@@ -1,8 +1,13 @@
 import { X } from "lucide-react";
 import { useState } from "react";
+import { useAuthStore } from "../store/useAuthStore";
 
 const Profile = ({ user, onClose }) => {
+  const { authUser, blockUser, unblockUser } = useAuthStore();
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+
+  const isBlocked = authUser?.blockedUsers?.includes(user._id);
+  const isBlockedByThem = authUser?.blockedByUsers?.includes(user._id);
 
   return (
     <div
@@ -28,7 +33,14 @@ const Profile = ({ user, onClose }) => {
             onClick={() => setIsImagePreviewOpen(true)}
           >
             <div className="size-40 rounded-full">
-              <img src={user.profilePic || "/avatar.png"} alt={user.fullName} />
+              <img
+                src={
+                  authUser.blockedByUsers?.includes(user._id)
+                    ? "/avatar.png"
+                    : user.profilePic || "/avatar.png"
+                }
+                alt={user.fullName}
+              />
             </div>
           </div>
 
@@ -41,16 +53,24 @@ const Profile = ({ user, onClose }) => {
 
         {/* Buttons */}
         <div className="mt-6 space-y-2">
-          <button className="w-full py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg">
-            Block User
-          </button>
-          <button className="w-full py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg">
-            Delete All Messages
-          </button>
+          {!isBlockedByThem && (
+            <button
+              onClick={() =>
+                isBlocked ? unblockUser(user._id) : blockUser(user._id)
+              }
+              className={`w-full py-2 ${
+                isBlocked
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-red-500 hover:bg-red-600"
+              } text-white font-bold rounded-lg`}
+            >
+              {isBlocked ? "Unblock User" : "Block User"}
+            </button>
+          )}
         </div>
       </div>
       {/* Image Preview Modal */}
-      {isImagePreviewOpen && (
+      {isImagePreviewOpen && !isBlockedByThem && (
         <div
           className="fixed inset-0 z-60 bg-black bg-opacity-75 flex items-center justify-center"
           onClick={() => setIsImagePreviewOpen(false)}

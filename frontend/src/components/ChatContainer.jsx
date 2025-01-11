@@ -3,19 +3,19 @@ import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
-import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import TypingIndicator from "./TypingIndicator";
+import { axiosInstance } from "../lib/axios"; // Add this import
 
 const ChatContainer = () => {
   const {
     messages,
     getMessages,
-    isMessagesLoading,
     selectedUser,
+    setSelectedUser, // Add this
     subscribeToMessages,
     unsubscribeFromMessages,
     contacts,
@@ -85,6 +85,39 @@ const ChatContainer = () => {
     console.log("Typing state changed:", isTyping);
   }, [isTyping]);
 
+  // Remove the duplicate useEffects and combine them into one comprehensive effect
+  useEffect(() => {
+    const socket = useAuthStore.getState().socket;
+
+    if (socket) {
+      const handleBlockUpdate = async () => {
+        try {
+          // Get fresh user data
+          const response = await axiosInstance.get(
+            `/auth/user/${selectedUser._id}`
+          );
+          const freshUserData = response.data;
+
+          // Update the selected user with fresh data
+          setSelectedUser(freshUserData);
+
+          // Force re-render of messages by getting them again
+          await getMessages(selectedUser._id);
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+      };
+
+      socket.on("userBlockedUpdate", handleBlockUpdate);
+      socket.on("userUnblockedUpdate", handleBlockUpdate);
+
+      return () => {
+        socket.off("userBlockedUpdate", handleBlockUpdate);
+        socket.off("userUnblockedUpdate", handleBlockUpdate);
+      };
+    }
+  }, [selectedUser?._id, getMessages, setSelectedUser]);
+
   const toggleDropdown = (messageId) => {
     setVisibleDropdown((prev) => {
       const newValue = prev === messageId ? null : messageId;
@@ -112,10 +145,6 @@ const ChatContainer = () => {
   };
 
   const closeModal = () => setPreviewImage(null); // Close modal function
-
-  const filteredContacts = contacts.filter((contact) =>
-    contact.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleTransferClick = (messageId) => {
     setSelectedMessageId(messageId);
@@ -160,94 +189,98 @@ const ChatContainer = () => {
     </ul>
   );
 
-  const TransferModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div
-        ref={modalRef}
-        className="bg-base-200 rounded-2xl w-full max-w-md mx-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-base-300 flex justify-between items-center">
-          <h3 className="text-lg font-semibold">Transfer Message</h3>
-          <button
-            onClick={() => setShowTransferModal(false)}
-            className="btn btn-ghost btn-sm btn-circle"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const TransferModal = () => {
+    const { authUser } = useAuthStore(); // Add this line
 
-        <div className="p-4">
-          <div className="relative mb-4">
-            <input
-              type="text"
-              placeholder="Search contacts..."
-              className="input input-bordered w-full pr-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
-          </div>
+    const filteredContacts = contacts.filter(
+      (contact) =>
+        contact.fullName.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !contact.blockedUsers?.includes(authUser._id) &&
+        !authUser.blockedUsers?.includes(contact._id)
+    );
 
-          <div className="max-h-[60vh] overflow-y-auto">
-            {filteredContacts.length === 0 ? (
-              <div className="text-center py-8 text-base-content/70">
-                No contacts found
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredContacts.map((contact) => (
-                  <button
-                    key={contact._id}
-                    disabled={isTransferring}
-                    onClick={async () => {
-                      setIsTransferring(true);
-                      try {
-                        await useChatStore
-                          .getState()
-                          .transferMessage(selectedMessageId, contact._id);
-                        setShowTransferModal(false);
-                        setSearchQuery("");
-                      } finally {
-                        setIsTransferring(false);
-                      }
-                    }}
-                    className="flex items-center gap-3 w-full p-3 hover:bg-base-300 rounded-lg transition-colors"
-                  >
-                    <img
-                      src={contact.profilePic || "/avatar.png"}
-                      alt={contact.fullName}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div className="flex-1 text-left">
-                      <div className="font-medium">{contact.fullName}</div>
-                    </div>
-                    <Send className="w-4 h-4 text-base-content/50" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader />
-        <MessageSkeleton />
-        <MessageInput />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+          ref={modalRef}
+          className="bg-base-200 rounded-2xl w-full max-w-md mx-4 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4 border-b border-base-300 flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Transfer Message</h3>
+            <button
+              onClick={() => setShowTransferModal(false)}
+              className="btn btn-ghost btn-sm btn-circle"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-4">
+            <div className="relative mb-4">
+              <input
+                type="text"
+                placeholder="Search contacts..."
+                className="input input-bordered w-full pr-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto">
+              {filteredContacts.length === 0 ? (
+                <div className="text-center py-8 text-base-content/70">
+                  No available contacts found
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredContacts.map((contact) => (
+                    <button
+                      key={contact._id}
+                      disabled={isTransferring}
+                      onClick={async () => {
+                        setIsTransferring(true);
+                        try {
+                          await useChatStore
+                            .getState()
+                            .transferMessage(selectedMessageId, contact._id);
+                          setShowTransferModal(false);
+                          setSearchQuery("");
+                        } finally {
+                          setIsTransferring(false);
+                        }
+                      }}
+                      className="flex items-center gap-3 w-full p-3 hover:bg-base-300 rounded-lg transition-colors"
+                    >
+                      <img
+                        src={contact.profilePic || "/avatar.png"}
+                        alt={contact.fullName}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div className="flex-1 text-left">
+                        <div className="font-medium">{contact.fullName}</div>
+                      </div>
+                      <Send className="w-4 h-4 text-base-content/50" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {" "}
+      {/* Changed from overflow-auto to overflow-hidden */}
       <ChatHeader />
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
+        {" "}
+        {/* Added overflow-x-hidden */}
         {messages.map((message) => (
           <div
             key={message._id}
@@ -263,9 +296,13 @@ const ChatContainer = () => {
                   src={
                     message.senderId === authUser._id
                       ? authUser.profilePic || "/avatar.png"
-                      : selectedUser.profilePic || "/avatar.png"
+                      : selectedUser?.blockedUsers?.includes(authUser?._id)
+                      ? "/avatar.png"
+                      : selectedUser?.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
+                  className="transition-opacity duration-200" // Add transition
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -286,14 +323,14 @@ const ChatContainer = () => {
             <div
               className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              } relative group`}
+              } relative group max-w-[80%] break-words`} // Added max-w-[80%] and break-words
             >
               {message.image && (
                 <img
                   src={message.image}
                   alt="attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer"
-                  onClick={() => setPreviewImage(message.image)} // Set image to preview
+                  className="max-w-full rounded-md mb-2 cursor-pointer" // Changed from sm:max-w-[200px] to max-w-full
+                  onClick={() => setPreviewImage(message.image)}
                 />
               )}
               {message.text && (
@@ -302,7 +339,7 @@ const ChatContainer = () => {
                     message.senderId === authUser._id
                       ? "text-primary-content"
                       : "text-base-content"
-                  }`}
+                  } overflow-hidden`} // Added overflow-hidden
                 >
                   {message.text}
                 </p>
@@ -356,12 +393,9 @@ const ChatContainer = () => {
           </div>
         )}
       </div>
-
       <MessageInput />
-
       {/* Transfer Modal */}
       {showTransferModal && <TransferModal />}
-
       {/* Image Preview Modal */}
       {previewImage && (
         <div

@@ -89,7 +89,10 @@ export const verifyEmail = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email })
+      .populate('blockedUsers')
+      .populate('blockedByUsers');
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -109,7 +112,10 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
+      blockedUsers: user.blockedUsers.map(u => u._id), // Send only IDs
+      blockedByUsers: user.blockedByUsers.map(u => u._id), // Send only IDs
     });
+
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -239,11 +245,95 @@ export const addContact = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-export const checkAuth = (req, res) => {
+export const checkAuth = async (req, res) => {
   try {
-    res.status(200).json(req.user);
+    const user = await User.findById(req.user._id)
+      .populate('blockedUsers')
+      .populate('blockedByUsers');
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      blockedUsers: user.blockedUsers.map(u => u._id), // Send only IDs
+      blockedByUsers: user.blockedByUsers.map(u => u._id), // Send only IDs
+    });
   } catch (error) {
     console.log("error in CheckAuth", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const blockUser = async (req, res) => {
+  try {
+    const { id: userToBlock } = req.params;
+    const userId = req.user._id;
+
+    // Update both users atomically
+    await Promise.all([
+      // Add to blocker's blockedUsers
+      User.findByIdAndUpdate(userId, {
+        $addToSet: { blockedUsers: userToBlock }
+      }),
+      // Add to blockee's blockedByUsers
+      User.findByIdAndUpdate(userToBlock, {
+        $addToSet: { blockedByUsers: userId }
+      })
+    ]);
+
+    res.status(200).json({ message: "User blocked successfully" });
+  } catch (error) {
+    console.log("Error in blockUser:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const unblockUser = async (req, res) => {
+  try {
+    const { id: userToUnblock } = req.params;
+    const userId = req.user._id;
+
+    // Update both users atomically
+    await Promise.all([
+      // Remove from blocker's blockedUsers
+      User.findByIdAndUpdate(userId, {
+        $pull: { blockedUsers: userToUnblock }
+      }),
+      // Remove from blockee's blockedByUsers
+      User.findByIdAndUpdate(userToUnblock, {
+        $pull: { blockedByUsers: userId }
+      })
+    ]);
+
+    res.status(200).json({ message: "User unblocked successfully" });
+  } catch (error) {
+    console.log("Error in unblockUser:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error("Error in getUserById:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getBlockedUsers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('blockedUsers', 'fullName email profilePic');
+
+    res.json(user.blockedUsers);
+  } catch (error) {
+    console.error("Error in getBlockedUsers:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

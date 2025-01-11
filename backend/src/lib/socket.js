@@ -112,6 +112,17 @@ io.on("connection", (socket) => {
         }
     });
 
+    // Add these new events
+    socket.on("userBlocked", ({ blockedUserId, blockerId }) => {
+        // Notify all connected clients
+        io.emit("userBlockedUpdate", { blockerId, blockedUserId });
+    });
+
+    socket.on("userUnblocked", ({ unblockedUserId, unblockerId }) => {
+        // Notify all connected clients
+        io.emit("userUnblockedUpdate", { unblockerId, unblockedUserId });
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 

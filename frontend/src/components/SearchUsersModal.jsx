@@ -10,24 +10,35 @@ const SearchUsersModal = ({ isOpen, onClose }) => {
   const [searchResults, setSearchResults] = useState([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const { users, contacts, addContact, addingContact } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { getUsers, contacts, addContact, addingContact } = useChatStore();
+  const { onlineUsers, authUser } = useAuthStore();
 
   useEffect(() => {
-    if (debouncedSearch.length >= 2) {
+    if (debouncedSearch.length >= 1) {
       setIsSearching(true);
-      const results = users.filter((user) =>
-        user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase())
-      );
-      setSearchResults(results);
-      setIsSearching(false);
+      // Get fresh user data before filtering
+      getUsers().then(() => {
+        const freshUsers = useChatStore.getState().users;
+        const results = freshUsers.filter((user) =>
+          user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase())
+        );
+        setSearchResults(results);
+        setIsSearching(false);
+      });
     } else {
       setSearchResults([]);
     }
-  }, [debouncedSearch, users]);
+  }, [debouncedSearch]);
 
   const isContactAdded = (userId) => {
     return contacts.some((contact) => contact._id === userId);
+  };
+
+  // Add cleanup when modal closes
+  const handleClose = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -63,19 +74,28 @@ const SearchUsersModal = ({ isOpen, onClose }) => {
                 >
                   <div className="relative">
                     <img
-                      src={user.profilePic || "/avatar.png"}
+                      src={
+                        user.blockedUsers?.includes(authUser._id)
+                          ? "/avatar.png"
+                          : user.profilePic || "/avatar.png"
+                      }
                       alt={user.fullName}
                       className="size-12 rounded-full object-cover"
                     />
-                    {onlineUsers.includes(user._id) && (
-                      <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-100" />
-                    )}
+                    {onlineUsers.includes(user._id) &&
+                      !user.blockedUsers?.includes(authUser._id) && (
+                        <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-100" />
+                      )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{user.fullName}</p>
                     <p className="text-sm text-zinc-400">
-                      {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                      {user.blockedUsers?.includes(authUser._id)
+                        ? "Offline"
+                        : onlineUsers.includes(user._id)
+                        ? "Online"
+                        : "Offline"}
                     </p>
                   </div>
 
@@ -108,14 +128,14 @@ const SearchUsersModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="modal-action">
-          <button onClick={onClose} className="btn">
+          <button onClick={handleClose} className="btn">
             Close
           </button>
         </div>
       </div>
       <div
         className="modal-backdrop bg-base-200 opacity-50"
-        onClick={onClose}
+        onClick={handleClose}
       />
     </div>
   );

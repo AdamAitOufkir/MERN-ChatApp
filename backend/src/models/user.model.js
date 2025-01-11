@@ -34,6 +34,18 @@ const userSchema = new mongoose.Schema(
     verificationTokenExpiry: Date,
     resetPasswordToken: String,
     resetPasswordTokenExpiry: Date,
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    blockedByUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );

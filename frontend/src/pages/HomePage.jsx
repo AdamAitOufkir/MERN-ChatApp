@@ -2,9 +2,20 @@ import ChatContainer from "../components/ChatContainer";
 import NoChatSelected from "../components/NoChatSelected";
 import Sidebar from "../components/Sidebar";
 import { useChatStore } from "../store/useChatStore";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 const HomePage = () => {
-  const { selectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser } = useChatStore();
+  const location = useLocation();
+
+  // Clear selectedUser when navigating away
+  useEffect(() => {
+    return () => {
+      setSelectedUser(null);
+    };
+  }, [location.pathname]);
+
   return (
     <div className="h-screen bg-base-200">
       <div className="flex items-center justify-center pt-16 md:pt-20 sm:pt-20 lg:pt-20 sm:px-4 md:px-4 lg:px-4">

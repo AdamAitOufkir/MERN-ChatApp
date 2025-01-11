@@ -8,8 +8,8 @@ import { useSound } from "../hooks/useSound";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, initiateCall } = useChatStore();
-  const { onlineUsers } = useAuthStore();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { onlineUsers, authUser } = useAuthStore();
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // State to toggle profile modal
   const { playSound } = useSound();
 
   const handleCall = async (isVideo) => {
@@ -29,6 +29,14 @@ const ChatHeader = () => {
     }
   };
 
+  const isCallDisabled = () => {
+    return (
+      !onlineUsers.includes(selectedUser._id) ||
+      selectedUser.blockedUsers?.includes(authUser._id) ||
+      authUser.blockedUsers?.includes(selectedUser._id)
+    );
+  };
+
   return (
     <div>
       <div className="p-2.5 border-b border-base-300 hover:bg-base-300">
@@ -43,7 +51,11 @@ const ChatHeader = () => {
             >
               <div className="size-10 rounded-full relative">
                 <img
-                  src={selectedUser.profilePic || "/avatar.png"}
+                  src={
+                    authUser.blockedByUsers?.includes(selectedUser._id)
+                      ? "/avatar.png"
+                      : selectedUser.profilePic || "/avatar.png"
+                  }
                   alt={selectedUser.fullName}
                 />
               </div>
@@ -54,7 +66,11 @@ const ChatHeader = () => {
             >
               <h3 className="font-medium">{selectedUser.fullName}</h3>
               <p className="text-sm text-base-content/70">
-                {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+                {selectedUser.blockedUsers?.includes(authUser._id)
+                  ? "Offline"
+                  : onlineUsers.includes(selectedUser._id)
+                  ? "Online"
+                  : "Offline"}
               </p>
             </div>
           </div>
@@ -64,14 +80,24 @@ const ChatHeader = () => {
             <button
               className="btn btn-circle btn-ghost"
               onClick={() => handleCall(false)}
-              disabled={!onlineUsers.includes(selectedUser._id)}
+              disabled={isCallDisabled()}
+              title={
+                isCallDisabled()
+                  ? "Calls are disabled when users are blocked"
+                  : "Voice Call"
+              }
             >
               <Phone className="w-5 h-5" />
             </button>
             <button
               className="btn btn-circle btn-ghost"
               onClick={() => handleCall(true)}
-              disabled={!onlineUsers.includes(selectedUser._id)}
+              disabled={isCallDisabled()}
+              title={
+                isCallDisabled()
+                  ? "Calls are disabled when users are blocked"
+                  : "Video Call"
+              }
             >
               <Video className="w-5 h-5" />
             </button>
