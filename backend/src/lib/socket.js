@@ -56,6 +56,21 @@ io.on("connection", (socket) => {
         }
     });
 
+    // Add these new events
+    socket.on("userBlocked", ({ blockedUserId, blockerId }) => {
+        const blockedUserSocketId = getReceiverSocketId(blockedUserId);
+        if (blockedUserSocketId) {
+            io.to(blockedUserSocketId).emit("userBlockedUpdate", { blockerId });
+        }
+    });
+
+    socket.on("userUnblocked", ({ unblockedUserId, unblockerId }) => {
+        const unblockedUserSocketId = getReceiverSocketId(unblockedUserId);
+        if (unblockedUserSocketId) {
+            io.to(unblockedUserSocketId).emit("userUnblockedUpdate", { unblockerId });
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 

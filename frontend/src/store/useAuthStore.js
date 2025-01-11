@@ -126,6 +126,48 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
+    blockUser: async (userId) => {
+        try {
+            await axiosInstance.post(`/auth/block/${userId}`);
+            const currentUser = get().authUser;
+            set({ 
+                authUser: {
+                    ...currentUser,
+                    blockedUsers: [...(currentUser.blockedUsers || []), userId]
+                }
+            });
+            // Emit socket event
+            get().socket?.emit("userBlocked", {
+                blockedUserId: userId,
+                blockerId: currentUser._id
+            });
+            toast.success("User blocked successfully");
+        } catch (error) {
+            toast.error("Failed to block user");
+        }
+    },
+
+    unblockUser: async (userId) => {
+        try {
+            await axiosInstance.post(`/auth/unblock/${userId}`);
+            const currentUser = get().authUser;
+            set({ 
+                authUser: {
+                    ...currentUser,
+                    blockedUsers: currentUser.blockedUsers.filter(id => id !== userId)
+                }
+            });
+            // Emit socket event
+            get().socket?.emit("userUnblocked", {
+                unblockedUserId: userId,
+                unblockerId: currentUser._id
+            });
+            toast.success("User unblocked successfully");
+        } catch (error) {
+            toast.error("Failed to unblock user");
+        }
+    },
+
     connectSocket: () => {
         const { authUser } = get()
         {/* dont connect to socket if user is not authentified or is already authentified*/ }
@@ -144,6 +186,30 @@ export const useAuthStore = create((set, get) => ({
         socket.on("getOnlineUsers", (userIds) => {
             set({ onlineUsers: userIds })
         })
+
+        socket.on("userBlockedUpdate", ({ blockerId }) => {
+            const currentUser = get().authUser;
+            if (!currentUser) return;
+
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedByUsers: [...(currentUser.blockedByUsers || []), blockerId]
+                }
+            });
+        });
+
+        socket.on("userUnblockedUpdate", ({ unblockerId }) => {
+            const currentUser = get().authUser;
+            if (!currentUser) return;
+
+            set({
+                authUser: {
+                    ...currentUser,
+                    blockedByUsers: (currentUser.blockedByUsers || []).filter(id => id !== unblockerId)
+                }
+            });
+        });
     },
 
     disconnectSocket: () => {

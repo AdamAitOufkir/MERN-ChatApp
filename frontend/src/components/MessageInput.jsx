@@ -5,13 +5,48 @@ import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
+  // Move all hooks to the top, before any conditional logic
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
-  const { socket, authUser } = useAuthStore(); // Add authUser here
-  const { selectedUser } = useChatStore();
   const typingTimeoutRef = useRef(null);
+  const { sendMessage, selectedUser } = useChatStore();
+  const { socket, authUser, unblockUser } = useAuthStore();
+
+  // Define blocking checks after hooks
+  const isBlockedByMe = authUser?.blockedUsers?.includes(selectedUser?._id);
+  const isBlockedByThem = authUser?.blockedByUsers?.includes(selectedUser?._id);
+
+  // Move useEffect outside of conditional logic
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        emitTyping(false);
+      }
+    };
+  }, [selectedUser?._id]);
+
+  const emitTyping = (isTyping) => {
+    if (socket && selectedUser && authUser) {
+      socket.emit("typing", {
+        receiverId: selectedUser._id,
+        senderId: authUser._id,
+        isTyping,
+      });
+    }
+  };
+
+  const handleTyping = (e) => {
+    setText(e.target.value);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    emitTyping(true);
+    typingTimeoutRef.current = setTimeout(() => {
+      emitTyping(false);
+    }, 1000);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -42,7 +77,6 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
-      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -51,42 +85,29 @@ const MessageInput = () => {
     }
   };
 
-  const emitTyping = (isTyping) => {
-    if (socket && selectedUser && authUser) {
-      // Check for authUser
-      socket.emit("typing", {
-        receiverId: selectedUser._id,
-        senderId: authUser._id,
-        isTyping,
-      });
-    }
-  };
-
-  const handleTyping = (e) => {
-    setText(e.target.value);
-
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Emit typing start
-    emitTyping(true);
-
-    // Set new timeout to stop typing
-    typingTimeoutRef.current = setTimeout(() => {
-      emitTyping(false);
-    }, 1000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        emitTyping(false);
-      }
-    };
-  }, [selectedUser?._id]);
+  if (isBlockedByMe || isBlockedByThem) {
+    return (
+      <div className="p-4">
+        <div className="p-4 text-center bg-base-200 rounded-lg">
+          {isBlockedByMe ? (
+            <div>
+              <p className="mb-2">You have blocked {selectedUser.fullName}</p>
+              {!isBlockedByThem && ( // Only show unblock button if they haven't blocked you
+                <button
+                  onClick={() => unblockUser(selectedUser._id)}
+                  className="btn btn-primary btn-sm"
+                >
+                  Unblock User
+                </button>
+              )}
+            </div>
+          ) : (
+            <p>You have been blocked by {selectedUser.fullName}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 w-full">
