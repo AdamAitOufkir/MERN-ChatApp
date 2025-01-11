@@ -67,9 +67,6 @@ const Profile = ({ user, onClose }) => {
               {isBlocked ? "Unblock User" : "Block User"}
             </button>
           )}
-          <button className="w-full py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg">
-            Delete All Messages
-          </button>
         </div>
       </div>
       {/* Image Preview Modal */}
