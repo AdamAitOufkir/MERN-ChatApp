@@ -14,10 +14,11 @@ const Sidebar = () => {
     setSelectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
-    isContactsLoading, // Add this
-  } = useChatStore(); // Remove isContactsLoading from destructuring
+    isContactsLoading,
+    handleSocketEvents,
+  } = useChatStore();
 
-  const { onlineUsers, authUser } = useAuthStore(); // Add authUser here
+  const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
@@ -29,34 +30,14 @@ const Sidebar = () => {
     };
 
     initialize();
+    const cleanup = handleSocketEvents();
 
     return () => {
       unsubscribeFromMessages();
+      cleanup && cleanup();
     };
-  }, []); // Remove the dependencies since we're managing updates through state
-
-  // Remove or modify the socket effect that reloads contacts
-  useEffect(() => {
-    const socket = useAuthStore.getState().socket;
-
-    if (socket) {
-      const handleBlockUpdate = () => {
-        // Instead of reloading all contacts, we'll just let React re-render
-        // with the existing contacts data since the authUser's blockedUsers
-        // array will be updated by the auth store
-      };
-
-      socket.on("userBlockedUpdate", handleBlockUpdate);
-      socket.on("userUnblockedUpdate", handleBlockUpdate);
-
-      return () => {
-        socket.off("userBlockedUpdate", handleBlockUpdate);
-        socket.off("userUnblockedUpdate", handleBlockUpdate);
-      };
-    }
   }, []);
 
-  // Move the filtering and sorting logic into a useMemo to optimize performance
   const sortedFilteredContacts = useMemo(() => {
     const filtered = showOnlineOnly
       ? contacts.filter((contact) => onlineUsers.includes(contact._id))
@@ -73,11 +54,9 @@ const Sidebar = () => {
     });
   }, [contacts, showOnlineOnly, onlineUsers]);
 
-  // Add helper function to count unseen messages
+  // Helper function to count unseen messages
   const getUnseenCount = (contact) => {
     if (!contact.messages || !contact.messages.length) return 0;
-
-    const { authUser } = useAuthStore.getState();
     return contact.messages.filter(
       (msg) =>
         msg.senderId === contact._id &&
@@ -86,7 +65,6 @@ const Sidebar = () => {
     ).length;
   };
 
-  // Add conditional rendering at the root level
   if (isContactsLoading) {
     return <SidebarSkeleton />;
   }

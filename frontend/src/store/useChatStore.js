@@ -516,5 +516,46 @@ export const useChatStore = create((set, get) => ({
         set({ currentCall: null });
     },
 
+    updateUserData: async (userId) => {
+        try {
+            const response = await axiosInstance.get(`/auth/user/${userId}`);
+            const freshUserData = response.data;
+            set(state => ({
+                selectedUser: state.selectedUser?._id === userId ? freshUserData : state.selectedUser,
+                contacts: state.contacts.map(contact =>
+                    contact._id === userId ? { ...contact, ...freshUserData } : contact
+                )
+            }));
+            await get().getMessages(userId);
+        } catch (error) {
+            console.error("Error updating user data:", error);
+        }
+    },
+
+    handleSocketEvents: () => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket) return;
+
+        socket.on("userBlockedUpdate", () => {
+            const { selectedUser } = get();
+            if (selectedUser) {
+                get().updateUserData(selectedUser._id);
+            }
+            // Let React re-render with updated authUser.blockedUsers
+        });
+
+        socket.on("userUnblockedUpdate", () => {
+            const { selectedUser } = get();
+            if (selectedUser) {
+                get().updateUserData(selectedUser._id);
+            }
+            // Let React re-render with updated authUser.blockedUsers
+        });
+
+        return () => {
+            socket.off("userBlockedUpdate");
+            socket.off("userUnblockedUpdate");
+        };
+    },
 
 }))

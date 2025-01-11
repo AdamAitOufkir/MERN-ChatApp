@@ -8,18 +8,17 @@ import { formatMessageTime } from "../lib/utils";
 import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import TypingIndicator from "./TypingIndicator";
-import { axiosInstance } from "../lib/axios"; // Add this import
 
 const ChatContainer = () => {
   const {
     messages,
     getMessages,
     selectedUser,
-    setSelectedUser, // Add this
     subscribeToMessages,
     unsubscribeFromMessages,
     contacts,
     isTyping,
+    handleSocketEvents,
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -35,21 +34,19 @@ const ChatContainer = () => {
   useEffect(() => {
     getMessages(selectedUser._id);
     subscribeToMessages();
+    const cleanup = handleSocketEvents();
 
-    return () => unsubscribeFromMessages();
-  }, [
-    selectedUser._id,
-    getMessages,
-    subscribeToMessages,
-    unsubscribeFromMessages,
-  ]);
+    return () => {
+      unsubscribeFromMessages();
+      cleanup && cleanup();
+    };
+  }, [selectedUser._id]);
 
-  // Modify the existing useEffect for scrolling
   useEffect(() => {
     if (messageEndRef.current && (messages || isTyping)) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isTyping]); // Add isTyping as dependency
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -85,39 +82,6 @@ const ChatContainer = () => {
     console.log("Typing state changed:", isTyping);
   }, [isTyping]);
 
-  // Remove the duplicate useEffects and combine them into one comprehensive effect
-  useEffect(() => {
-    const socket = useAuthStore.getState().socket;
-
-    if (socket) {
-      const handleBlockUpdate = async () => {
-        try {
-          // Get fresh user data
-          const response = await axiosInstance.get(
-            `/auth/user/${selectedUser._id}`
-          );
-          const freshUserData = response.data;
-
-          // Update the selected user with fresh data
-          setSelectedUser(freshUserData);
-
-          // Force re-render of messages by getting them again
-          await getMessages(selectedUser._id);
-        } catch (error) {
-          console.error("Error updating user data:", error);
-        }
-      };
-
-      socket.on("userBlockedUpdate", handleBlockUpdate);
-      socket.on("userUnblockedUpdate", handleBlockUpdate);
-
-      return () => {
-        socket.off("userBlockedUpdate", handleBlockUpdate);
-        socket.off("userUnblockedUpdate", handleBlockUpdate);
-      };
-    }
-  }, [selectedUser?._id, getMessages, setSelectedUser]);
-
   const toggleDropdown = (messageId) => {
     setVisibleDropdown((prev) => {
       const newValue = prev === messageId ? null : messageId;
@@ -144,7 +108,7 @@ const ChatContainer = () => {
     });
   };
 
-  const closeModal = () => setPreviewImage(null); // Close modal function
+  const closeModal = () => setPreviewImage(null);
 
   const handleTransferClick = (messageId) => {
     setSelectedMessageId(messageId);
@@ -190,7 +154,7 @@ const ChatContainer = () => {
   );
 
   const TransferModal = () => {
-    const { authUser } = useAuthStore(); // Add this line
+    const { authUser } = useAuthStore();
 
     const filteredContacts = contacts.filter(
       (contact) =>
@@ -256,7 +220,7 @@ const ChatContainer = () => {
                       <img
                         src={contact.profilePic || "/avatar.png"}
                         alt={contact.fullName}
-                        className="w-10 h-10 rounded-full"
+                        className="w-10 h-10 rounded-full object-cover"
                       />
                       <div className="flex-1 text-left">
                         <div className="font-medium">{contact.fullName}</div>
@@ -275,12 +239,8 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {" "}
-      {/* Changed from overflow-auto to overflow-hidden */}
       <ChatHeader />
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
-        {" "}
-        {/* Added overflow-x-hidden */}
         {messages.map((message) => (
           <div
             key={message._id}
@@ -323,13 +283,13 @@ const ChatContainer = () => {
             <div
               className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              } relative group max-w-[80%] break-words`} // Added max-w-[80%] and break-words
+              } relative group max-w-[80%] break-words`}
             >
               {message.image && (
                 <img
                   src={message.image}
                   alt="attachment"
-                  className="max-w-full rounded-md mb-2 cursor-pointer" // Changed from sm:max-w-[200px] to max-w-full
+                  className="max-w-full rounded-md mb-2 cursor-pointer"
                   onClick={() => setPreviewImage(message.image)}
                 />
               )}
@@ -339,7 +299,7 @@ const ChatContainer = () => {
                     message.senderId === authUser._id
                       ? "text-primary-content"
                       : "text-base-content"
-                  } overflow-hidden`} // Added overflow-hidden
+                  } overflow-hidden`}
                 >
                   {message.text}
                 </p>
