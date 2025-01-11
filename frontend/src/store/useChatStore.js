@@ -147,7 +147,18 @@ export const useChatStore = create((set, get) => ({
 
     transferMessage: async (messageId, targetUserId) => {
         try {
-            const { contacts, selectedUser, messages } = get();
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Find target contact and check block status
+            const targetContact = contacts.find(c => c._id === targetUserId);
+            if (targetContact?.blockedUsers?.includes(authUser._id) ||
+                authUser.blockedUsers?.includes(targetUserId)) {
+                toast.error("Cannot transfer message to blocked users");
+                return;
+            }
+
+            const { selectedUser, messages } = get();
             const res = await axiosInstance.post("/messages/transfer", {
                 messageId,
                 targetUserId,
