@@ -48,6 +48,62 @@ io.on("connection", (socket) => {
             console.error("Error marking messages as seen:", error);
         }
     });
+    socket.on("initiateCall", ({ to, isVideoCall, roomId }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            console.log(`Sending call request to ${to} (Socket: ${receiverSocketId})`);
+            io.to(receiverSocketId).emit("incomingCall", {
+                from: userId,
+                isVideoCall,
+                roomId
+            });
+        } else {
+            socket.emit("callRejected"); // User is offline
+        }
+    });
+
+    socket.on("acceptCall", ({ to, roomId }) => {
+        const callerSocketId = getReceiverSocketId(to);
+        if (callerSocketId) {
+            console.log(`Call accepted by ${userId}, notifying caller ${to}`);
+            io.to(callerSocketId).emit("callAccepted", { roomId });
+        }
+    });
+
+    socket.on("rejectCall", ({ to }) => {
+        const callerSocketId = getReceiverSocketId(to);
+        if (callerSocketId) {
+            io.to(callerSocketId).emit("callRejected");
+        }
+    });
+
+    socket.on("userJoinedCall", ({ to }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("userJoinedCall");
+        }
+    });
+
+    socket.on("userLeftCall", ({ to }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("userLeftCall");
+        }
+    });
+
+    socket.on("userJoinedCall", ({ to, roomId }) => {
+        const otherUserSocketId = getReceiverSocketId(to);
+        if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("otherUserJoined", { roomId });
+        }
+    });
+
+    socket.on("userLeftCall", ({ to, roomId }) => {
+        const otherUserSocketId = getReceiverSocketId(to);
+        if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("otherUserLeft", { roomId });
+        }
+    });
 
     socket.on("typing", ({ receiverId, senderId, isTyping }) => {
         const receiverSocketId = getReceiverSocketId(receiverId);

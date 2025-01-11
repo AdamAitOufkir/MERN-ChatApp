@@ -13,14 +13,45 @@ import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useChatStore } from "./store/useChatStore";
+import CallNotification from "./components/CallNotification";
+import VideoCall from "./components/VideoCall";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
+  const { incomingCall, acceptCall, rejectCall, currentCall } = useChatStore();
+
+  useEffect(() => {
+    const root = document.documentElement; // Access the <html> element
+    root.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (incomingCall) {
+      // Make sure audio can play
+      document.addEventListener("click", function initAudio() {
+        const audio = new Audio();
+        audio.play().catch(() => {});
+        document.removeEventListener("click", initAudio);
+      });
+    }
+  }, [incomingCall]);
+
+  useEffect(() => {
+    if (incomingCall) {
+      // Make sure audio can play
+      document.addEventListener("click", function initAudio() {
+        const audio = new Audio();
+        audio.play().catch(() => {});
+        document.removeEventListener("click", initAudio);
+      });
+    }
+  }, [incomingCall]);
 
   if (isCheckingAuth) {
     return (
@@ -53,7 +84,6 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
-        {/* New Routes */}
         <Route
           path="/verify-email/:token"
           element={!authUser ? <VerifyEmailPage /> : <Navigate to="/" />}
@@ -67,6 +97,16 @@ const App = () => {
           element={!authUser ? <ResetPasswordPage /> : <Navigate to="/" />}
         />
       </Routes>
+      {incomingCall && (
+        <CallNotification
+          key={incomingCall.roomId} // Add key to force remount
+          callData={incomingCall}
+          onAccept={() => acceptCall(incomingCall)}
+          onReject={() => rejectCall(incomingCall)}
+        />
+      )}
+      {currentCall && <VideoCall />}
+
       <Toaster />
     </div>
   );

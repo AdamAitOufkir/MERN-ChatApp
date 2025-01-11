@@ -12,6 +12,8 @@ export const useChatStore = create((set, get) => ({
     isUsersLoading: false,
     isContactsLoading: false,
     isMessagesLoading: false,
+    incomingCall: null,
+    currentCall: null,
     isTyping: false,
 
     getUsers: async () => {
@@ -199,6 +201,9 @@ export const useChatStore = create((set, get) => ({
 
         socket.off("newMessage");
         socket.off("messagesSeen");
+        socket.off("incomingCall");
+        socket.off("callAccepted");
+        socket.off("callRejected");
         socket.off("messageTransferred"); // Add this line
 
         socket.on("newMessage", (newMessage) => {
@@ -265,6 +270,38 @@ export const useChatStore = create((set, get) => ({
             set({ messages: updatedMessages });
         });
 
+        socket.on("incomingCall", (callData) => {
+            get().handleIncomingCall(callData);
+        });
+
+        socket.on("callAccepted", ({ roomId }) => {
+            set({
+                currentCall: {
+                    roomId,
+                    isVideoCall: get().currentCall?.isVideoCall,
+                    isInitiator: true
+                }
+            });
+        });
+
+        socket.on("callRejected", () => {
+            set({ currentCall: null });
+            toast.error("Call was rejected");
+        });
+
+        socket.on("otherUserJoined", ({ roomId }) => {
+            if (get().currentCall?.roomId === roomId) {
+                // User already in call, sound will be handled by VideoCall component
+            }
+        });
+
+        socket.on("otherUserLeft", ({ roomId }) => {
+            if (get().currentCall?.roomId === roomId) {
+                // User already in call, sound will be handled by VideoCall component
+            }
+        });
+
+
         socket.on("messageTransferred", ({ newMessage, targetUserId }) => {
             const { contacts } = get();
 
@@ -303,6 +340,9 @@ export const useChatStore = create((set, get) => ({
             socket.off("newMessage");
             socket.off("connect");
             socket.off("messagesSeen");
+            socket.off("incomingCall");
+            socket.off("callAccepted");
+            socket.off("callRejected");
             socket.off("messageTransferred"); // Add this line
             socket.off("typing"); // Make sure to remove typing listener
         }
@@ -332,6 +372,53 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
             await get().getMessages(selectedUser._id);
         }
+    },
+
+    initiateCall: async (userId, isVideoCall) => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket?.connected) return;
+
+        const roomId = `${userId}-${Date.now()}`;
+        set({ currentCall: { roomId, isVideoCall, isInitiator: true } });
+
+        socket.emit("initiateCall", {
+            to: userId,
+            isVideoCall,
+            roomId
+        });
+    },
+
+    handleIncomingCall: (callData) => {
+        set({ incomingCall: callData });
+    },
+
+    acceptCall: (callData) => {
+        set({
+            currentCall: {
+                roomId: callData.roomId,
+                isVideoCall: callData.isVideoCall,
+                isInitiator: false
+            },
+            incomingCall: null
+        });
+
+        const socket = useAuthStore.getState().socket;
+        socket.emit("acceptCall", {
+            to: callData.from,
+            roomId: callData.roomId
+        });
+    },
+
+    rejectCall: (callData) => {
+        set({ incomingCall: null });
+        const socket = useAuthStore.getState().socket;
+        socket.emit("rejectCall", {
+            to: callData.from
+        });
+    },
+
+    endCall: () => {
+        set({ currentCall: null });
     },
 
 }))
