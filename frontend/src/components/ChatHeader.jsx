@@ -3,13 +3,11 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useState } from "react";
 import Profile from "./Profile";
-import VideoCall from "./VideoCall";
 import toast from "react-hot-toast";
 import { useSound } from "../hooks/useSound";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser, initiateCall, currentCall } =
-    useChatStore();
+  const { selectedUser, setSelectedUser, initiateCall } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { playSound } = useSound();
@@ -85,8 +83,6 @@ const ChatHeader = () => {
       {isProfileOpen && (
         <Profile user={selectedUser} onClose={() => setIsProfileOpen(false)} />
       )}
-
-      {currentCall && <VideoCall />}
     </div>
   );
 };

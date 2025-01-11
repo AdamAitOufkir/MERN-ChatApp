@@ -15,11 +15,12 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useChatStore } from "./store/useChatStore";
 import CallNotification from "./components/CallNotification";
+import VideoCall from "./components/VideoCall";
 
 const App = () => {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
-  const { incomingCall, acceptCall, rejectCall } = useChatStore();
+  const { incomingCall, acceptCall, rejectCall, currentCall } = useChatStore();
 
   useEffect(() => {
     const root = document.documentElement; // Access the <html> element
@@ -104,6 +105,8 @@ const App = () => {
           onReject={() => rejectCall(incomingCall)}
         />
       )}
+      {currentCall && <VideoCall />}
+
       <Toaster />
     </div>
   );
