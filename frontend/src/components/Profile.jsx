@@ -33,7 +33,10 @@ const Profile = ({ user, onClose }) => {
             onClick={() => setIsImagePreviewOpen(true)}
           >
             <div className="size-40 rounded-full">
-              <img src={user.profilePic || "/avatar.png"} alt={user.fullName} />
+              <img 
+                src={authUser.blockedByUsers?.includes(user._id) ? "/avatar.png" : (user.profilePic || "/avatar.png")} 
+                alt={user.fullName} 
+              />
             </div>
           </div>
 

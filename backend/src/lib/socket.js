@@ -58,17 +58,13 @@ io.on("connection", (socket) => {
 
     // Add these new events
     socket.on("userBlocked", ({ blockedUserId, blockerId }) => {
-        const blockedUserSocketId = getReceiverSocketId(blockedUserId);
-        if (blockedUserSocketId) {
-            io.to(blockedUserSocketId).emit("userBlockedUpdate", { blockerId });
-        }
+        // Notify all connected clients
+        io.emit("userBlockedUpdate", { blockerId, blockedUserId });
     });
 
     socket.on("userUnblocked", ({ unblockedUserId, unblockerId }) => {
-        const unblockedUserSocketId = getReceiverSocketId(unblockedUserId);
-        if (unblockedUserSocketId) {
-            io.to(unblockedUserSocketId).emit("userUnblockedUpdate", { unblockerId });
-        }
+        // Notify all connected clients
+        io.emit("userUnblockedUpdate", { unblockerId, unblockedUserId });
     });
 
     socket.on("disconnect", () => {

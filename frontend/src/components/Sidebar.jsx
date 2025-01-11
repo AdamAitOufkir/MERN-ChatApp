@@ -17,7 +17,7 @@ const Sidebar = () => {
     unsubscribeFromMessages,
   } = useChatStore();
 
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, authUser } = useAuthStore(); // Add authUser here
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
@@ -34,6 +34,25 @@ const Sidebar = () => {
       unsubscribeFromMessages();
     };
   }, []); // Remove the dependencies since we're managing updates through state
+
+  // Add effect to refresh contacts when block status changes
+  useEffect(() => {
+    const socket = useAuthStore.getState().socket;
+    
+    if (socket) {
+      const handleBlockUpdate = () => {
+        getContacts(); // Refresh contacts when block status changes
+      };
+
+      socket.on("userBlockedUpdate", handleBlockUpdate);
+      socket.on("userUnblockedUpdate", handleBlockUpdate);
+
+      return () => {
+        socket.off("userBlockedUpdate", handleBlockUpdate);
+        socket.off("userUnblockedUpdate", handleBlockUpdate);
+      };
+    }
+  }, [getContacts]);
 
   // Move the filtering and sorting logic into a useMemo to optimize performance
   const sortedFilteredContacts = useMemo(() => {
@@ -122,21 +141,21 @@ const Sidebar = () => {
             className={`
               w-full p-3 flex items-center gap-3
               hover:bg-base-300 transition-colors
-              ${
-                selectedUser?._id === user._id
-                  ? "bg-base-300 ring-1 ring-base-300"
-                  : ""
-              }
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
             `}
           >
             <div className="relative mx-auto lg:mx-0">
               <img
-                src={user.profilePic || "/avatar.png"}
+                src={
+                  user.blockedUsers?.includes(authUser?._id) 
+                    ? "/avatar.png" 
+                    : (user.profilePic || "/avatar.png")
+                }
                 alt={user.name}
                 className="size-12 object-cover rounded-full"
               />
-              {/* Online status - bottom right */}
-              {onlineUsers.includes(user._id) && (
+              {/* Online status - only show if not blocked by user */}
+              {onlineUsers.includes(user._id) && !user.blockedUsers?.includes(authUser?._id) && (
                 <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
               )}
               {/* Unseen message count - mobile only (top right) */}
@@ -154,7 +173,9 @@ const Sidebar = () => {
               <div className="text-left min-w-0 flex-1">
                 <div className="font-medium truncate">{user.fullName}</div>
                 <div className="text-sm text-zinc-400">
-                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                  {user.blockedUsers?.includes(authUser?._id) 
+                    ? "Offline" 
+                    : (onlineUsers.includes(user._id) ? "Online" : "Offline")}
                 </div>
               </div>
               {/* Unseen count for desktop */}

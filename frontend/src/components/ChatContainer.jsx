@@ -9,6 +9,7 @@ import { formatMessageTime } from "../lib/utils";
 import { Forward, X, Search, Send, Trash2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import TypingIndicator from "./TypingIndicator";
+import { axiosInstance } from "../lib/axios"; // Add this import
 
 const ChatContainer = () => {
   const {
@@ -16,6 +17,7 @@ const ChatContainer = () => {
     getMessages,
     isMessagesLoading,
     selectedUser,
+    setSelectedUser,  // Add this
     subscribeToMessages,
     unsubscribeFromMessages,
     contacts,
@@ -84,6 +86,37 @@ const ChatContainer = () => {
   useEffect(() => {
     console.log("Typing state changed:", isTyping);
   }, [isTyping]);
+
+  // Remove the duplicate useEffects and combine them into one comprehensive effect
+  useEffect(() => {
+    const socket = useAuthStore.getState().socket;
+    
+    if (socket) {
+      const handleBlockUpdate = async () => {
+        try {
+          // Get fresh user data
+          const response = await axiosInstance.get(`/auth/user/${selectedUser._id}`);
+          const freshUserData = response.data;
+          
+          // Update the selected user with fresh data
+          setSelectedUser(freshUserData);
+          
+          // Force re-render of messages by getting them again
+          await getMessages(selectedUser._id);
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+      };
+
+      socket.on("userBlockedUpdate", handleBlockUpdate);
+      socket.on("userUnblockedUpdate", handleBlockUpdate);
+
+      return () => {
+        socket.off("userBlockedUpdate", handleBlockUpdate);
+        socket.off("userUnblockedUpdate", handleBlockUpdate);
+      };
+    }
+  }, [selectedUser?._id, getMessages, setSelectedUser]);
 
   const toggleDropdown = (messageId) => {
     setVisibleDropdown((prev) => {
@@ -262,8 +295,8 @@ const ChatContainer = () => {
                 <img
                   src={
                     message.senderId === authUser._id
-                      ? authUser.profilePic || "/avatar.png"
-                      : selectedUser.profilePic || "/avatar.png"
+                      ? (selectedUser?.blockedUsers?.includes(authUser._id) ? authUser.profilePic : authUser.profilePic || "/avatar.png")
+                      : (selectedUser?.blockedUsers?.includes(authUser._id) ? "/avatar.png" : selectedUser.profilePic || "/avatar.png")
                   }
                   alt="profile pic"
                 />

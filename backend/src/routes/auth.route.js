@@ -11,6 +11,7 @@ import {
   resetPassword,
   blockUser,
   unblockUser,
+  getUserById
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -27,5 +28,6 @@ router.post("/add-contact/:id", protectRoute, addContact);
 router.post("/block/:id", protectRoute, blockUser);
 router.post("/unblock/:id", protectRoute, unblockUser);
 router.get("/check", protectRoute, checkAuth);
+router.get('/user/:id', getUserById);
 
 export default router;

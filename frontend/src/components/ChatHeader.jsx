@@ -6,7 +6,7 @@ import Profile from "./Profile";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, authUser } = useAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false); // State to toggle profile modal
 
   return (
@@ -25,7 +25,9 @@ const ChatHeader = () => {
             >
               <div className="size-10 rounded-full relative">
                 <img
-                  src={selectedUser.profilePic || "/avatar.png"}
+                  src={authUser.blockedByUsers?.includes(selectedUser._id) 
+                    ? "/avatar.png" 
+                    : (selectedUser.profilePic || "/avatar.png")}
                   alt={selectedUser.fullName}
                 />
               </div>
@@ -38,7 +40,9 @@ const ChatHeader = () => {
             >
               <h3 className="font-medium">{selectedUser.fullName}</h3>
               <p className="text-sm text-base-content/70">
-                {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+                {selectedUser.blockedUsers?.includes(authUser._id)
+                  ? "Offline"
+                  : (onlineUsers.includes(selectedUser._id) ? "Online" : "Offline")}
               </p>
             </div>
           </div>
