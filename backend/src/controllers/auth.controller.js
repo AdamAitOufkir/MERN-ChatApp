@@ -89,7 +89,10 @@ export const verifyEmail = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email })
+      .populate('blockedUsers')
+      .populate('blockedByUsers');
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -109,7 +112,10 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
+      blockedUsers: user.blockedUsers.map(u => u._id), // Send only IDs
+      blockedByUsers: user.blockedByUsers.map(u => u._id), // Send only IDs
     });
+
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -239,9 +245,20 @@ export const addContact = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-export const checkAuth = (req, res) => {
+export const checkAuth = async (req, res) => {
   try {
-    res.status(200).json(req.user);
+    const user = await User.findById(req.user._id)
+      .populate('blockedUsers')
+      .populate('blockedByUsers');
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      blockedUsers: user.blockedUsers.map(u => u._id), // Send only IDs
+      blockedByUsers: user.blockedByUsers.map(u => u._id), // Send only IDs
+    });
   } catch (error) {
     console.log("error in CheckAuth", error);
     res.status(500).json({ message: "Internal server error" });

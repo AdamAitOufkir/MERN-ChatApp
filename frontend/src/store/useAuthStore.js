@@ -132,20 +132,34 @@ export const useAuthStore = create((set, get) => ({
         try {
             await axiosInstance.post(`/auth/block/${userId}`);
             const currentUser = get().authUser;
+
+            // Update authUser state
             set({
                 authUser: {
                     ...currentUser,
                     blockedUsers: [...(currentUser.blockedUsers || []), userId]
                 }
             });
+
+            // Also update blockedUsers list if it's loaded
+            const { blockedUsers } = get();
+            if (blockedUsers.length > 0) {
+                const blockedUserData = await axiosInstance.get(`/auth/user/${userId}`);
+                set({
+                    blockedUsers: [...blockedUsers, blockedUserData.data]
+                });
+            }
+
             // Emit socket event
             get().socket?.emit("userBlocked", {
                 blockedUserId: userId,
                 blockerId: currentUser._id
             });
+
             toast.success("User blocked successfully");
         } catch (error) {
-            toast.error("Failed to block user", error);
+            toast.error("Failed to block user");
+            console.error(error);
         }
     },
 
@@ -213,6 +227,11 @@ export const useAuthStore = create((set, get) => ({
                     blockedByUsers: [...(currentUser.blockedByUsers || []), blockerId]
                 }
             });
+
+            // Refresh blocked users list if it's loaded
+            if (get().blockedUsers.length > 0) {
+                get().getBlockedUsers();
+            }
         });
 
         socket.on("userUnblockedUpdate", ({ unblockerId }) => {

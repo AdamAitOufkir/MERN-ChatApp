@@ -31,6 +31,8 @@ export const useChatStore = create((set, get) => ({
     getContacts: async () => {
         set({ isContactsLoading: true });
         try {
+            // Get fresh auth user data to ensure we have updated block lists
+            await useAuthStore.getState().checkAuth();
             const res = await axiosInstance.get("/messages/contacts");
             const contacts = res.data;
 
@@ -327,6 +329,24 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
+        socket.on("userBlockedUpdate", async ({ blockerId }) => {
+            // Refresh messages and contacts when block status changes
+            const { selectedUser } = get();
+            if (selectedUser) {
+                await get().getMessages(selectedUser._id);
+            }
+            await get().getContacts();
+        });
+
+        socket.on("userUnblockedUpdate", async ({ unblockerId }) => {
+            // Refresh messages and contacts when block status changes
+            const { selectedUser } = get();
+            if (selectedUser) {
+                await get().getMessages(selectedUser._id);
+            }
+            await get().getContacts();
+        });
+
         // Handle reconnection
         socket.on("connect", () => {
             console.log("Socket reconnected, resubscribing to messages");
@@ -345,6 +365,8 @@ export const useChatStore = create((set, get) => ({
             socket.off("callRejected");
             socket.off("messageTransferred"); // Add this line
             socket.off("typing"); // Make sure to remove typing listener
+            socket.off("userBlockedUpdate");
+            socket.off("userUnblockedUpdate");
         }
     },
 
@@ -420,5 +442,6 @@ export const useChatStore = create((set, get) => ({
     endCall: () => {
         set({ currentCall: null });
     },
+
 
 }))
