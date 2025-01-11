@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
-import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { Forward, X, Search, Send, Trash2 } from "lucide-react";
@@ -15,9 +14,8 @@ const ChatContainer = () => {
   const {
     messages,
     getMessages,
-    isMessagesLoading,
     selectedUser,
-    setSelectedUser,  // Add this
+    setSelectedUser, // Add this
     subscribeToMessages,
     unsubscribeFromMessages,
     contacts,
@@ -90,17 +88,19 @@ const ChatContainer = () => {
   // Remove the duplicate useEffects and combine them into one comprehensive effect
   useEffect(() => {
     const socket = useAuthStore.getState().socket;
-    
+
     if (socket) {
       const handleBlockUpdate = async () => {
         try {
           // Get fresh user data
-          const response = await axiosInstance.get(`/auth/user/${selectedUser._id}`);
+          const response = await axiosInstance.get(
+            `/auth/user/${selectedUser._id}`
+          );
           const freshUserData = response.data;
-          
+
           // Update the selected user with fresh data
           setSelectedUser(freshUserData);
-          
+
           // Force re-render of messages by getting them again
           await getMessages(selectedUser._id);
         } catch (error) {
@@ -266,21 +266,14 @@ const ChatContainer = () => {
     </div>
   );
 
-  if (isMessagesLoading) {
-    return (
-      <div className="flex-1 flex flex-col overflow-auto">
-        <ChatHeader />
-        <MessageSkeleton />
-        <MessageInput />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 flex flex-col overflow-hidden"> {/* Changed from overflow-auto to overflow-hidden */}
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {" "}
+      {/* Changed from overflow-auto to overflow-hidden */}
       <ChatHeader />
-
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"> {/* Added overflow-x-hidden */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
+        {" "}
+        {/* Added overflow-x-hidden */}
         {messages.map((message) => (
           <div
             key={message._id}
@@ -295,10 +288,14 @@ const ChatContainer = () => {
                 <img
                   src={
                     message.senderId === authUser._id
-                      ? (selectedUser?.blockedUsers?.includes(authUser._id) ? authUser.profilePic : authUser.profilePic || "/avatar.png")
-                      : (selectedUser?.blockedUsers?.includes(authUser._id) ? "/avatar.png" : selectedUser.profilePic || "/avatar.png")
+                      ? authUser.profilePic || "/avatar.png"
+                      : selectedUser?.blockedUsers?.includes(authUser?._id)
+                      ? "/avatar.png"
+                      : selectedUser?.profilePic || "/avatar.png"
                   }
                   alt="profile pic"
+                  className="transition-opacity duration-200" // Add transition
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -389,12 +386,9 @@ const ChatContainer = () => {
           </div>
         )}
       </div>
-
       <MessageInput />
-
       {/* Transfer Modal */}
       {showTransferModal && <TransferModal />}
-
       {/* Image Preview Modal */}
       {previewImage && (
         <div

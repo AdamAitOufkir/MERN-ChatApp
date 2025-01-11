@@ -28,6 +28,15 @@ const ChatHeader = () => {
       );
     }
   };
+
+  const isCallDisabled = () => {
+    return (
+      !onlineUsers.includes(selectedUser._id) ||
+      selectedUser.blockedUsers?.includes(authUser._id) ||
+      authUser.blockedUsers?.includes(selectedUser._id)
+    );
+  };
+
   return (
     <div>
       <div className="p-2.5 border-b border-base-300 hover:bg-base-300">
@@ -71,14 +80,24 @@ const ChatHeader = () => {
             <button
               className="btn btn-circle btn-ghost"
               onClick={() => handleCall(false)}
-              disabled={!onlineUsers.includes(selectedUser._id)}
+              disabled={isCallDisabled()}
+              title={
+                isCallDisabled()
+                  ? "Calls are disabled when users are blocked"
+                  : "Voice Call"
+              }
             >
               <Phone className="w-5 h-5" />
             </button>
             <button
               className="btn btn-circle btn-ghost"
               onClick={() => handleCall(true)}
-              disabled={!onlineUsers.includes(selectedUser._id)}
+              disabled={isCallDisabled()}
+              title={
+                isCallDisabled()
+                  ? "Calls are disabled when users are blocked"
+                  : "Video Call"
+              }
             >
               <Video className="w-5 h-5" />
             </button>

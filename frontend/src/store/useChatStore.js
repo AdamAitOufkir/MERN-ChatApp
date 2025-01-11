@@ -70,7 +70,6 @@ export const useChatStore = create((set, get) => ({
 
 
     getMessages: async (userId) => {
-        set({ isMessagesLoading: true })
         try {
             const res = await axiosInstance.get(`/messages/${userId}`)
             set({ messages: res.data })
@@ -90,8 +89,6 @@ export const useChatStore = create((set, get) => ({
             set({ contacts: updatedContacts });
         } catch (error) {
             toast.error(error.response.data.message)
-        } finally {
-            set({ isMessagesLoading: false })
         }
     },
 
@@ -331,6 +328,44 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
+        socket.on("userBlockedUpdate", ({ blockerId, blockedUserId }) => {
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Update contacts directly without loading state
+            if (authUser._id === blockedUserId) {
+                const updatedContacts = contacts.map(contact => {
+                    if (contact._id === blockerId) {
+                        return {
+                            ...contact,
+                            blockedUsers: [...(contact.blockedUsers || []), authUser._id]
+                        };
+                    }
+                    return contact;
+                });
+                set({ contacts: updatedContacts });
+            }
+        });
+
+        socket.on("userUnblockedUpdate", ({ unblockerId, unblockedUserId }) => {
+            const { contacts } = get();
+            const { authUser } = useAuthStore.getState();
+
+            // Update contacts directly without loading state
+            if (authUser._id === unblockedUserId) {
+                const updatedContacts = contacts.map(contact => {
+                    if (contact._id === unblockerId) {
+                        return {
+                            ...contact,
+                            blockedUsers: (contact.blockedUsers || []).filter(id => id !== authUser._id)
+                        };
+                    }
+                    return contact;
+                });
+                set({ contacts: updatedContacts });
+            }
+        });
+
         socket.on("userBlockedUpdate", async () => {
             // Refresh messages and contacts when block status changes
             const { selectedUser } = get();
@@ -401,6 +436,18 @@ export const useChatStore = create((set, get) => ({
     initiateCall: async (userId, isVideoCall) => {
         const socket = useAuthStore.getState().socket;
         if (!socket?.connected) return;
+
+        const { authUser } = useAuthStore.getState();
+        const { contacts } = get();
+
+        // Find the contact to check block status
+        const contact = contacts.find(c => c._id === userId);
+
+        if (contact?.blockedUsers?.includes(authUser._id) ||
+            authUser.blockedUsers?.includes(userId)) {
+            toast.error("Cannot initiate call when either user is blocked");
+            return;
+        }
 
         const roomId = `${userId}-${Date.now()}`;
         set({ currentCall: { roomId, isVideoCall, isInitiator: true } });

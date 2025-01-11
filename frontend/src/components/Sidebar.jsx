@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
 import { useChatStore } from "../store/useChatStore";
-import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { UserPlus, Users } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import SearchUsersModal from "./SearchUsersModal";
@@ -9,13 +8,12 @@ const Sidebar = () => {
   const {
     getContacts,
     contacts,
-    isContactsLoading,
     getUsers,
     selectedUser,
     setSelectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
-  } = useChatStore();
+  } = useChatStore(); // Remove isContactsLoading from destructuring
 
   const { onlineUsers, authUser } = useAuthStore(); // Add authUser here
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -35,13 +33,15 @@ const Sidebar = () => {
     };
   }, []); // Remove the dependencies since we're managing updates through state
 
-  // Add effect to refresh contacts when block status changes
+  // Remove or modify the socket effect that reloads contacts
   useEffect(() => {
     const socket = useAuthStore.getState().socket;
-    
+
     if (socket) {
       const handleBlockUpdate = () => {
-        getContacts(); // Refresh contacts when block status changes
+        // Instead of reloading all contacts, we'll just let React re-render
+        // with the existing contacts data since the authUser's blockedUsers
+        // array will be updated by the auth store
       };
 
       socket.on("userBlockedUpdate", handleBlockUpdate);
@@ -52,7 +52,7 @@ const Sidebar = () => {
         socket.off("userUnblockedUpdate", handleBlockUpdate);
       };
     }
-  }, [getContacts]);
+  }, []);
 
   // Move the filtering and sorting logic into a useMemo to optimize performance
   const sortedFilteredContacts = useMemo(() => {
@@ -83,8 +83,6 @@ const Sidebar = () => {
         !msg.seen
     ).length;
   };
-
-  if (isContactsLoading) return <SidebarSkeleton />;
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
@@ -141,23 +139,29 @@ const Sidebar = () => {
             className={`
               w-full p-3 flex items-center gap-3
               hover:bg-base-300 transition-colors
-              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+              ${
+                selectedUser?._id === user._id
+                  ? "bg-base-300 ring-1 ring-base-300"
+                  : ""
+              }
             `}
           >
             <div className="relative mx-auto lg:mx-0">
               <img
                 src={
-                  user.blockedUsers?.includes(authUser?._id) 
-                    ? "/avatar.png" 
-                    : (user.profilePic || "/avatar.png")
+                  user.blockedUsers?.includes(authUser?._id)
+                    ? "/avatar.png"
+                    : user.profilePic || "/avatar.png"
                 }
                 alt={user.name}
-                className="size-12 object-cover rounded-full"
+                className="size-12 object-cover rounded-full transition-opacity duration-200"
+                loading="lazy"
               />
               {/* Online status - only show if not blocked by user */}
-              {onlineUsers.includes(user._id) && !user.blockedUsers?.includes(authUser?._id) && (
-                <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
-              )}
+              {onlineUsers.includes(user._id) &&
+                !user.blockedUsers?.includes(authUser?._id) && (
+                  <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
+                )}
               {/* Unseen message count - mobile only (top right) */}
               <div className="lg:hidden">
                 {getUnseenCount(user) > 0 && (
@@ -173,9 +177,11 @@ const Sidebar = () => {
               <div className="text-left min-w-0 flex-1">
                 <div className="font-medium truncate">{user.fullName}</div>
                 <div className="text-sm text-zinc-400">
-                  {user.blockedUsers?.includes(authUser?._id) 
-                    ? "Offline" 
-                    : (onlineUsers.includes(user._id) ? "Online" : "Offline")}
+                  {user.blockedUsers?.includes(authUser?._id)
+                    ? "Offline"
+                    : onlineUsers.includes(user._id)
+                    ? "Online"
+                    : "Offline"}
                 </div>
               </div>
               {/* Unseen count for desktop */}
