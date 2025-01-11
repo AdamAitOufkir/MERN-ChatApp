@@ -19,12 +19,14 @@ export const useChatStore = create((set, get) => ({
     getUsers: async () => {
         set({ isUsersLoading: true });
         try {
-            const res = await axiosInstance.get("/messages/users")
-            set({ users: res.data })
+            // Get fresh auth data first to ensure we have updated block lists
+            await useAuthStore.getState().checkAuth();
+            const res = await axiosInstance.get("/messages/users");
+            set({ users: res.data });
         } catch (error) {
-            toast.error(error.response.data.message)
+            toast.error(error.response?.data?.message || "Failed to fetch users");
         } finally {
-            set({ isUsersLoading: false })
+            set({ isUsersLoading: false });
         }
     },
 
@@ -329,7 +331,7 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
-        socket.on("userBlockedUpdate", async ({ blockerId }) => {
+        socket.on("userBlockedUpdate", async () => {
             // Refresh messages and contacts when block status changes
             const { selectedUser } = get();
             if (selectedUser) {
@@ -338,7 +340,7 @@ export const useChatStore = create((set, get) => ({
             await get().getContacts();
         });
 
-        socket.on("userUnblockedUpdate", async ({ unblockerId }) => {
+        socket.on("userUnblockedUpdate", async () => {
             // Refresh messages and contacts when block status changes
             const { selectedUser } = get();
             if (selectedUser) {
