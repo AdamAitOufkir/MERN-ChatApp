@@ -110,7 +110,7 @@ const MessageInput = () => {
   }
 
   return (
-    <div className="p-4 w-full">
+    <div className="p-4 w-full max-w-full"> {/* Added max-w-full */}
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -131,11 +131,11 @@ const MessageInput = () => {
         </div>
       )}
 
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="flex-1 flex gap-2">
+      <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-full"> {/* Added max-w-full */}
+        <div className="flex-1 flex gap-2 min-w-0"> {/* Added min-w-0 to prevent flex child overflow */}
           <input
             type="text"
-            className="w-full input input-bordered rounded-lg input-sm sm:input-md"
+            className="w-full input input-bordered rounded-lg input-sm sm:input-md text-ellipsis" 
             placeholder="Type a message..."
             value={text}
             onChange={handleTyping}

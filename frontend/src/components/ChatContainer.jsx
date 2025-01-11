@@ -277,10 +277,10 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col overflow-hidden"> {/* Changed from overflow-auto to overflow-hidden */}
       <ChatHeader />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"> {/* Added overflow-x-hidden */}
         {messages.map((message) => (
           <div
             key={message._id}
@@ -319,14 +319,14 @@ const ChatContainer = () => {
             <div
               className={`chat-bubble flex items-start pr-8 rounded-2xl ${
                 message.senderId === authUser._id ? "bg-primary" : "bg-base-200"
-              } relative group`}
+              } relative group max-w-[80%] break-words`} // Added max-w-[80%] and break-words
             >
               {message.image && (
                 <img
                   src={message.image}
                   alt="attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer"
-                  onClick={() => setPreviewImage(message.image)} // Set image to preview
+                  className="max-w-full rounded-md mb-2 cursor-pointer" // Changed from sm:max-w-[200px] to max-w-full
+                  onClick={() => setPreviewImage(message.image)}
                 />
               )}
               {message.text && (
@@ -335,7 +335,7 @@ const ChatContainer = () => {
                     message.senderId === authUser._id
                       ? "text-primary-content"
                       : "text-base-content"
-                  }`}
+                  } overflow-hidden`} // Added overflow-hidden
                 >
                   {message.text}
                 </p>
