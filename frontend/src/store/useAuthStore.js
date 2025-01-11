@@ -17,6 +17,8 @@ export const useAuthStore = create((set, get) => ({
     isVerifyingEmail: false,
     isSendingResetEmail: false,
     isResettingPassword: false,
+    blockedUsers: [],
+    isLoadingBlockedUsers: false,
 
     verifyEmail: async (token) => {
         set({ isVerifyingEmail: true });
@@ -130,7 +132,7 @@ export const useAuthStore = create((set, get) => ({
         try {
             await axiosInstance.post(`/auth/block/${userId}`);
             const currentUser = get().authUser;
-            set({ 
+            set({
                 authUser: {
                     ...currentUser,
                     blockedUsers: [...(currentUser.blockedUsers || []), userId]
@@ -143,7 +145,7 @@ export const useAuthStore = create((set, get) => ({
             });
             toast.success("User blocked successfully");
         } catch (error) {
-            toast.error("Failed to block user");
+            toast.error("Failed to block user", error);
         }
     },
 
@@ -151,11 +153,13 @@ export const useAuthStore = create((set, get) => ({
         try {
             await axiosInstance.post(`/auth/unblock/${userId}`);
             const currentUser = get().authUser;
-            set({ 
+            // Update both authUser.blockedUsers and blockedUsers state
+            set({
                 authUser: {
                     ...currentUser,
                     blockedUsers: currentUser.blockedUsers.filter(id => id !== userId)
-                }
+                },
+                blockedUsers: get().blockedUsers.filter(user => user._id !== userId)
             });
             // Emit socket event
             get().socket?.emit("userUnblocked", {
@@ -164,7 +168,19 @@ export const useAuthStore = create((set, get) => ({
             });
             toast.success("User unblocked successfully");
         } catch (error) {
-            toast.error("Failed to unblock user");
+            toast.error("Failed to unblock user", error);
+        }
+    },
+
+    getBlockedUsers: async () => {
+        set({ isLoadingBlockedUsers: true });
+        try {
+            const res = await axiosInstance.get("/auth/blocked-users");
+            set({ blockedUsers: res.data });
+        } catch (error) {
+            toast.error("Failed to fetch blocked users", error);
+        } finally {
+            set({ isLoadingBlockedUsers: false });
         }
     },
 
