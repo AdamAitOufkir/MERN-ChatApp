@@ -349,12 +349,13 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
-        socket.on("userBlockedUpdate", ({ blockerId, blockedUserId }) => {
-            const { contacts } = get();
+        socket.on("userBlockedUpdate", async ({ blockerId, blockedUserId }) => {
+            // Get current contacts and authUser
+            const { contacts, selectedUser } = get();
             const { authUser } = useAuthStore.getState();
 
-            // Update contacts directly without loading state
             if (authUser._id === blockedUserId) {
+                // Update contacts directly without loading state
                 const updatedContacts = contacts.map(contact => {
                     if (contact._id === blockerId) {
                         return {
@@ -365,15 +366,21 @@ export const useChatStore = create((set, get) => ({
                     return contact;
                 });
                 set({ contacts: updatedContacts });
+
+                // If we're viewing the blocker's chat, update messages
+                if (selectedUser?._id === blockerId) {
+                    await get().getMessages(blockerId);
+                }
             }
         });
 
-        socket.on("userUnblockedUpdate", ({ unblockerId, unblockedUserId }) => {
-            const { contacts } = get();
+        socket.on("userUnblockedUpdate", async ({ unblockerId, unblockedUserId }) => {
+            // Get current contacts and authUser
+            const { contacts, selectedUser } = get();
             const { authUser } = useAuthStore.getState();
 
-            // Update contacts directly without loading state
             if (authUser._id === unblockedUserId) {
+                // Update contacts directly without loading state
                 const updatedContacts = contacts.map(contact => {
                     if (contact._id === unblockerId) {
                         return {
@@ -384,25 +391,12 @@ export const useChatStore = create((set, get) => ({
                     return contact;
                 });
                 set({ contacts: updatedContacts });
-            }
-        });
 
-        socket.on("userBlockedUpdate", async () => {
-            // Refresh messages and contacts when block status changes
-            const { selectedUser } = get();
-            if (selectedUser) {
-                await get().getMessages(selectedUser._id);
+                // If we're viewing the unblocker's chat, update messages
+                if (selectedUser?._id === unblockerId) {
+                    await get().getMessages(unblockerId);
+                }
             }
-            await get().getContacts();
-        });
-
-        socket.on("userUnblockedUpdate", async () => {
-            // Refresh messages and contacts when block status changes
-            const { selectedUser } = get();
-            if (selectedUser) {
-                await get().getMessages(selectedUser._id);
-            }
-            await get().getContacts();
         });
 
         socket.on("newContact", ({ contact }) => {
