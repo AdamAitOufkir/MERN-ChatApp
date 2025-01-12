@@ -327,7 +327,6 @@ export const useChatStore = create((set, get) => ({
             const { contacts } = get();
             const { authUser } = useAuthStore.getState();
 
-            // Update contacts directly without loading state
             if (authUser._id === blockedUserId) {
                 const updatedContacts = contacts.map(contact => {
                     if (contact._id === blockerId) {
@@ -346,7 +345,6 @@ export const useChatStore = create((set, get) => ({
             const { contacts } = get();
             const { authUser } = useAuthStore.getState();
 
-            // Update contacts directly without loading state
             if (authUser._id === unblockedUserId) {
                 const updatedContacts = contacts.map(contact => {
                     if (contact._id === unblockerId) {
@@ -359,24 +357,6 @@ export const useChatStore = create((set, get) => ({
                 });
                 set({ contacts: updatedContacts });
             }
-        });
-
-        socket.on("userBlockedUpdate", async () => {
-            // Refresh messages and contacts when block status changes
-            const { selectedUser } = get();
-            if (selectedUser) {
-                await get().getMessages(selectedUser._id);
-            }
-            await get().getContacts();
-        });
-
-        socket.on("userUnblockedUpdate", async () => {
-            // Refresh messages and contacts when block status changes
-            const { selectedUser } = get();
-            if (selectedUser) {
-                await get().getMessages(selectedUser._id);
-            }
-            await get().getContacts();
         });
 
         // Handle reconnection
