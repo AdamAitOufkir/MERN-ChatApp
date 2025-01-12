@@ -26,6 +26,18 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    incomingFriendRequests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    outgoingFriendRequests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     isVerified: {
       type: Boolean,
       default: false,

@@ -15,7 +15,12 @@ const Sidebar = () => {
     unsubscribeFromMessages,
   } = useChatStore(); // Remove isContactsLoading from destructuring
 
-  const { onlineUsers, authUser } = useAuthStore(); // Add authUser here
+  const {
+    onlineUsers,
+    authUser,
+    incomingFriendRequests,
+    getIncomingFriendRequests,
+  } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
@@ -23,6 +28,7 @@ const Sidebar = () => {
     const initialize = async () => {
       await getContacts();
       await getUsers();
+      await getIncomingFriendRequests();
       subscribeToMessages();
     };
 
@@ -91,20 +97,30 @@ const Sidebar = () => {
           <div className="flex items-center gap-2">
             <Users className="size-6 hidden lg:block" />
             <button
-              className="lg:hidden btn"
+              className="lg:hidden btn relative"
               onClick={() => setIsSearchModalOpen(true)}
             >
               <UserPlus className="size-6" />
+              {incomingFriendRequests.length > 0 && (
+                <span className="absolute -top-2 -right-2 badge badge-primary badge-sm">
+                  {incomingFriendRequests.length}
+                </span>
+              )}
             </button>
             <span className="font-medium hidden lg:block">Contacts</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              className="btn hidden lg:flex"
+              className="btn relative hidden lg:flex"
               onClick={() => setIsSearchModalOpen(true)}
             >
               <UserPlus className="size-6" />
+              {incomingFriendRequests.length > 0 && (
+                <span className="absolute -top-2 -right-2 badge badge-primary badge-sm">
+                  {incomingFriendRequests.length}
+                </span>
+              )}
             </button>
           </div>
         </div>

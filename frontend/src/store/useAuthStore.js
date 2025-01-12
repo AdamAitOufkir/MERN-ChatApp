@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client"
+import { useChatStore } from "./useChatStore.js";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -19,6 +20,12 @@ export const useAuthStore = create((set, get) => ({
     isResettingPassword: false,
     blockedUsers: [],
     isLoadingBlockedUsers: false,
+    incomingFriendRequests: [],
+    outgoingFriendRequests: [],
+    isLoadingFriendRequests: false,
+    isSendingFriendRequest: false,
+    isAcceptingFriendRequest: false,
+    isRejectingFriendRequest: false,
 
     verifyEmail: async (token) => {
         set({ isVerifyingEmail: true });
@@ -198,6 +205,99 @@ export const useAuthStore = create((set, get) => ({
         }
     },
 
+    sendFriendRequest: async (userId) => {
+        set({ isSendingFriendRequest: true });
+        try {
+            await axiosInstance.post(`/auth/friend-request/${userId}`);
+
+            // Update outgoingFriendRequests immediately
+            const userToAdd = await axiosInstance.get(`/auth/user/${userId}`);
+            set(state => ({
+                outgoingFriendRequests: [...state.outgoingFriendRequests, userToAdd.data]
+            }));
+
+            get().socket?.emit("friendRequestSent", {
+                to: userId,
+                from: get().authUser._id
+            });
+            toast.success("Friend request sent successfully");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to send friend request");
+        } finally {
+            set({ isSendingFriendRequest: false });
+        }
+    },
+
+    acceptFriendRequest: async (userId) => {
+        set({ isAcceptingFriendRequest: true });
+        try {
+            await axiosInstance.post(`/auth/friend-request/${userId}/accept`);
+
+            // Remove from incoming requests
+            set(state => ({
+                incomingFriendRequests: state.incomingFriendRequests.filter(req => req._id !== userId),
+                // Also update outgoingFriendRequests if needed
+                outgoingFriendRequests: state.outgoingFriendRequests.filter(req => req._id !== userId)
+            }));
+
+            // Emit socket event with both users' IDs
+            get().socket?.emit("friendRequestAccepted", {
+                to: userId,
+                from: get().authUser._id
+            });
+
+            // Update contacts for the accepting user immediately
+            await useChatStore.getState().getContacts();
+
+            toast.success("Friend request accepted");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to accept friend request");
+        } finally {
+            set({ isAcceptingFriendRequest: false });
+        }
+    },
+
+    rejectFriendRequest: async (userId) => {
+        set({ isRejectingFriendRequest: true });
+        try {
+            await axiosInstance.post(`/auth/friend-request/${userId}/reject`);
+            // Remove from incoming requests
+            set(state => ({
+                incomingFriendRequests: state.incomingFriendRequests.filter(req => req._id !== userId)
+            }));
+            get().socket?.emit("friendRequestRejected", {
+                to: userId,
+                from: get().authUser._id
+            });
+            toast.success("Friend request rejected");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to reject friend request");
+        } finally {
+            set({ isRejectingFriendRequest: false });
+        }
+    },
+
+    getIncomingFriendRequests: async () => {
+        set({ isLoadingFriendRequests: true });
+        try {
+            const res = await axiosInstance.get("/auth/friend-requests/incoming");
+            set({ incomingFriendRequests: res.data });
+        } catch (error) {
+            toast.error("Failed to fetch friend requests", error);
+        } finally {
+            set({ isLoadingFriendRequests: false });
+        }
+    },
+
+    getOutgoingFriendRequests: async () => {
+        try {
+            const res = await axiosInstance.get("/auth/friend-requests/outgoing");
+            set({ outgoingFriendRequests: res.data });
+        } catch (error) {
+            toast.error("Failed to fetch outgoing friend requests", error);
+        }
+    },
+
     connectSocket: () => {
         const { authUser } = get()
         {/* dont connect to socket if user is not authentified or is already authentified*/ }
@@ -244,6 +344,31 @@ export const useAuthStore = create((set, get) => ({
                     blockedByUsers: (currentUser.blockedByUsers || []).filter(id => id !== unblockerId)
                 }
             });
+        });
+
+        socket.on("newFriendRequest", () => {
+            get().getIncomingFriendRequests();
+            toast.success("New friend request received!");
+        });
+
+        socket.on("friendRequestAccepted", async () => {
+            // Refresh contacts list for both users
+            await useChatStore.getState().getContacts();
+
+        });
+
+        socket.on("friendRequestRejected", () => {
+            // Change from toast.info to toast
+            toast("Friend request rejected", {
+                icon: '❌'
+            });
+            // Also update outgoingFriendRequests
+            const currentUserId = get().authUser._id;
+            set(state => ({
+                outgoingFriendRequests: state.outgoingFriendRequests.filter(
+                    request => request._id !== currentUserId
+                )
+            }));
         });
     },
 

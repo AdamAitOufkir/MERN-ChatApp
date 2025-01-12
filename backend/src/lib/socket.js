@@ -123,6 +123,33 @@ io.on("connection", (socket) => {
         io.emit("userUnblockedUpdate", { unblockerId, unblockedUserId });
     });
 
+    socket.on("friendRequestSent", ({ to, from }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("newFriendRequest", { from });
+        }
+    });
+
+    socket.on("friendRequestAccepted", ({ to, from }) => {
+        const toSocketId = getReceiverSocketId(to);
+        const fromSocketId = getReceiverSocketId(from);
+
+        // Notify both users about the accepted request
+        if (toSocketId) {
+            io.to(toSocketId).emit("friendRequestAccepted", { from });
+        }
+        if (fromSocketId) {
+            io.to(fromSocketId).emit("friendRequestAccepted", { from: to });
+        }
+    });
+
+    socket.on("friendRequestRejected", ({ to, from }) => {
+        const receiverSocketId = getReceiverSocketId(to);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("friendRequestRejected", { from });
+        }
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected", socket.id);
         delete userSocketMap[userId] //delete user id 

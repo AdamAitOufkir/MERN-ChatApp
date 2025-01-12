@@ -208,43 +208,119 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const addContact = async (req, res) => {
+export const sendFriendRequest = async (req, res) => {
   try {
-    const contactToAddId = req.params.id;
-    const userId = req.user._id;
+    const receiverId = req.params.id;
+    const senderId = req.user._id;
 
-    const contactToAdd = await User.findById(contactToAddId);
+    const receiver = await User.findById(receiverId);
+    const sender = await User.findById(senderId);
 
-    if (!contactToAdd) {
-      return res.status(404).json({ message: "Contact not found" });
+    if (!receiver) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const user = await User.findById(userId);
-
-    if (user.contacts.includes(contactToAddId)) {
-      return res.status(400).json({ message: "User is already in your contacts" });
+    // Check if request already exists
+    if (receiver.incomingFriendRequests.includes(senderId) ||
+      sender.outgoingFriendRequests.includes(receiverId)) {
+      return res.status(400).json({ message: "Friend request already sent" });
     }
 
-    // Add contactToAddId to user's contacts
-    await User.findByIdAndUpdate(
-      userId,
-      { $addToSet: { contacts: contactToAddId } },
-      { new: true }
-    ).populate("contacts", "-password");
+    // Check if they're already contacts
+    if (receiver.contacts.includes(senderId)) {
+      return res.status(400).json({ message: "Users are already contacts" });
+    }
 
-    // Add userId to contactToAdd's contacts
-    await User.findByIdAndUpdate(
-      contactToAddId,
-      { $addToSet: { contacts: userId } },
-      { new: true }
-    ).populate("contacts", "-password");
+    // Add to receiver's incoming requests and sender's outgoing requests
+    await Promise.all([
+      User.findByIdAndUpdate(receiverId, {
+        $addToSet: { incomingFriendRequests: senderId }
+      }),
+      User.findByIdAndUpdate(senderId, {
+        $addToSet: { outgoingFriendRequests: receiverId }
+      })
+    ]);
 
-    res.status(200).json(contactToAdd);
+    res.status(200).json({ message: "Friend request sent successfully" });
   } catch (error) {
-    console.log("error in addContact", error);
+    console.error("Error in sendFriendRequest:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const acceptFriendRequest = async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user.incomingFriendRequests.includes(requesterId)) {
+      return res.status(404).json({ message: "Friend request not found" });
+    }
+
+    // Add each user to the other's contacts and remove the request
+    await Promise.all([
+      User.findByIdAndUpdate(userId, {
+        $pull: { incomingFriendRequests: requesterId },
+        $addToSet: { contacts: requesterId }
+      }),
+      User.findByIdAndUpdate(requesterId, {
+        $pull: { outgoingFriendRequests: userId },
+        $addToSet: { contacts: userId }
+      })
+    ]);
+
+    res.status(200).json({ message: "Friend request accepted" });
+  } catch (error) {
+    console.error("Error in acceptFriendRequest:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const rejectFriendRequest = async (req, res) => {
+  try {
+    const requesterId = req.params.id;
+    const userId = req.user._id;
+
+    // Remove the request from both users
+    await Promise.all([
+      User.findByIdAndUpdate(userId, {
+        $pull: { incomingFriendRequests: requesterId }
+      }),
+      User.findByIdAndUpdate(requesterId, {
+        $pull: { outgoingFriendRequests: userId }
+      })
+    ]);
+
+    res.status(200).json({ message: "Friend request rejected" });
+  } catch (error) {
+    console.error("Error in rejectFriendRequest:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getIncomingFriendRequests = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('incomingFriendRequests', 'fullName email profilePic');
+    res.json(user.incomingFriendRequests);
+  } catch (error) {
+    console.error("Error in getIncomingFriendRequests:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getOutgoingFriendRequests = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('outgoingFriendRequests', 'fullName email profilePic');
+    res.json(user.outgoingFriendRequests);
+  } catch (error) {
+    console.error("Error in getOutgoingFriendRequests:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
