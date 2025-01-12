@@ -2,7 +2,7 @@
 
 # Real-Time Chat Application
 
-A feature-rich, full-stack real-time chat application built with modern web technologies.
+This is a full-stack real-time chat application built with modern web technologies (MERN Stack and Web Socket) by Adam Ait Oufkir and Zineb Chibli for professor Filali as a NodeJs Project.
 
 ## Features
 
