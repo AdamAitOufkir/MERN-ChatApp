@@ -3,6 +3,7 @@ import { useChatStore } from "../store/useChatStore";
 import { UserPlus, Users } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import SearchUsersModal from "./SearchUsersModal";
+import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 
 const Sidebar = () => {
   const {
@@ -13,6 +14,7 @@ const Sidebar = () => {
     setSelectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    isContactsLoading,
   } = useChatStore(); // Remove isContactsLoading from destructuring
 
   const {
@@ -89,6 +91,11 @@ const Sidebar = () => {
         !msg.seen
     ).length;
   };
+
+  // Add conditional rendering at the root level
+  if (isContactsLoading) {
+    return <SidebarSkeleton />;
+  }
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
