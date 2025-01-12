@@ -16,7 +16,8 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   getIncomingFriendRequests,
-  getOutgoingFriendRequests
+  getOutgoingFriendRequests,
+  deleteContact
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -37,6 +38,7 @@ router.get("/blocked-users", protectRoute, getBlockedUsers);
 router.post("/friend-request/:id", protectRoute, sendFriendRequest);
 router.post("/friend-request/:id/accept", protectRoute, acceptFriendRequest);
 router.post("/friend-request/:id/reject", protectRoute, rejectFriendRequest);
+router.delete("/contact/:id", protectRoute, deleteContact);
 router.get("/friend-requests/incoming", protectRoute, getIncomingFriendRequests);
 router.get("/friend-requests/outgoing", protectRoute, getOutgoingFriendRequests);
 

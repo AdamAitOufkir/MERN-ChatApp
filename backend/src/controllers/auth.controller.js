@@ -4,6 +4,8 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email.js";
 import crypto from "crypto";
+import { io } from '../lib/socket.js';
+import { getReceiverSocketId } from '../lib/socket.js';
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -412,4 +414,34 @@ export const getBlockedUsers = async (req, res) => {
     console.error("Error in getBlockedUsers:", error);
     res.status(500).json({ message: "Internal server error" });
   }
+};
+
+// Add this new controller function
+
+export const deleteContact = async (req, res) => {
+    try {
+        const { id: contactId } = req.params;
+        const userId = req.user._id;
+
+        // Remove contact from user's contacts
+        await User.findByIdAndUpdate(userId, {
+            $pull: { contacts: contactId }
+        });
+
+        // Remove user from contact's contacts
+        await User.findByIdAndUpdate(contactId, {
+            $pull: { contacts: userId }
+        });
+
+        // Get socket instance and emit event to both users
+        const receiverSocketId = getReceiverSocketId(contactId);
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("contactDeleted", { userId });
+        }
+
+        res.status(200).json({ message: "Contact deleted successfully" });
+    } catch (error) {
+        console.error("Error in deleteContact:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };

@@ -1,13 +1,34 @@
 import { X } from "lucide-react";
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
+import Swal from "sweetalert2";
 
 const Profile = ({ user, onClose }) => {
-  const { authUser, blockUser, unblockUser } = useAuthStore();
+  const { authUser, blockUser, unblockUser, deleteContact } = useAuthStore();
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
 
   const isBlocked = authUser?.blockedUsers?.includes(user._id);
   const isBlockedByThem = authUser?.blockedByUsers?.includes(user._id);
+
+  const handleDeleteContact = async () => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will remove this contact from your list. This action cannot be undone!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete contact!",
+      customClass: {
+        popup: 'bg-base-200 rounded-3xl text-base-content',
+      },
+    });
+
+    if (result.isConfirmed) {
+      await deleteContact(user._id);
+      onClose(); // Close the profile modal after deletion
+    }
+  };
 
   return (
     <div
@@ -54,18 +75,27 @@ const Profile = ({ user, onClose }) => {
         {/* Buttons */}
         <div className="mt-6 space-y-2">
           {!isBlockedByThem && (
-            <button
-              onClick={() =>
-                isBlocked ? unblockUser(user._id) : blockUser(user._id)
-              }
-              className={`w-full py-2 ${
-                isBlocked
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-red-500 hover:bg-red-600"
-              } text-white font-bold rounded-lg`}
-            >
-              {isBlocked ? "Unblock User" : "Block User"}
-            </button>
+            <>
+              <button
+                onClick={() =>
+                  isBlocked ? unblockUser(user._id) : blockUser(user._id)
+                }
+                className={`w-full py-2 ${
+                  isBlocked
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-red-500 hover:bg-red-600"
+                } text-white font-bold rounded-lg`}
+              >
+                {isBlocked ? "Unblock User" : "Block User"}
+              </button>
+
+              <button
+                onClick={handleDeleteContact}
+                className="w-full py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg mt-2"
+              >
+                Delete Contact
+              </button>
+            </>
           )}
         </div>
       </div>

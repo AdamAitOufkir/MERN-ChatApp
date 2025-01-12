@@ -370,10 +370,30 @@ export const useAuthStore = create((set, get) => ({
                 )
             }));
         });
+
+        socket.on("contactDeleted", ({ userId }) => {
+            // Notify chat store to refresh contacts
+            useChatStore.getState().getContacts();
+        });
     },
 
     disconnectSocket: () => {
         if (get().socket?.connected) get().socket.disconnect(); {/*only disconnect if u are already connected*/ }
     },
 
+    deleteContact: async (contactId) => {
+        try {
+            await axiosInstance.delete(`/auth/contact/${contactId}`);
+            toast.success("Contact deleted successfully");
+            // Update contacts in chat store
+            await useChatStore.getState().getContacts();
+            // If the deleted contact was selected, clear selection
+            if (useChatStore.getState().selectedUser?._id === contactId) {
+                useChatStore.getState().setSelectedUser(null);
+            }
+        } catch (error) {
+            toast.error("Failed to delete contact");
+            console.error(error);
+        }
+    },
 }));
