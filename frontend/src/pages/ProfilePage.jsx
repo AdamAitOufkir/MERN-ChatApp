@@ -1,10 +1,12 @@
-import { Camera, Mail, User } from "lucide-react";
+import { Camera, Mail, User, Edit2, Check } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useState } from "react";
 
 const ProfilePage = () => {
-  const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
+  const { authUser, isUpdatingProfile, updateProfile, isUpdatingName, updateFullName } = useAuthStore();
   const [selectedImg, setSelectedImage] = useState(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState(authUser?.fullName);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -16,6 +18,17 @@ const ProfilePage = () => {
       setSelectedImage(base64Image);
       await updateProfile({ profilePic: base64Image });
     };
+  };
+
+  const handleNameUpdate = async () => {
+    if (newName === authUser.fullName) {
+      setIsEditingName(false);
+      return;
+    }
+    const success = await updateFullName(newName);
+    if (success) {
+      setIsEditingName(false);
+    }
   };
 
   return (
@@ -78,9 +91,32 @@ const ProfilePage = () => {
                 <User className="w-4 h-4 text-primary" />
                 Full Name
               </div>
-              <p className="px-4 py-2.5 bg-base-300 rounded-lg border border-primary/10">
-                {authUser?.fullName}
-              </p>
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="px-4 py-2.5 bg-base-300 rounded-lg border border-primary/10 w-full focus:outline-none focus:border-primary"
+                    disabled={isUpdatingName}
+                  />
+                ) : (
+                  <p className="px-4 py-2.5 bg-base-300 rounded-lg border border-primary/10 w-full">
+                    {authUser?.fullName}
+                  </p>
+                )}
+                <button
+                  onClick={isEditingName ? handleNameUpdate : () => setIsEditingName(true)}
+                  disabled={isUpdatingName}
+                  className="p-2 rounded-lg bg-primary hover:bg-primary-focus text-primary-content transition-colors"
+                >
+                  {isEditingName ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Edit2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">

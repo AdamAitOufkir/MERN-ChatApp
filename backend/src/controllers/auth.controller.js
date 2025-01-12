@@ -413,3 +413,25 @@ export const getBlockedUsers = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const updateFullName = async (req, res) => {
+  try {
+    const { fullName } = req.body;
+    const userId = req.user._id;
+
+    if (!fullName) {
+      return res.status(400).json({ message: "Full name is required" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fullName },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log("error in updateFullName", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

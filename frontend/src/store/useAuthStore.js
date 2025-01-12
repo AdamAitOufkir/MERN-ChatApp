@@ -26,6 +26,7 @@ export const useAuthStore = create((set, get) => ({
     isSendingFriendRequest: false,
     isAcceptingFriendRequest: false,
     isRejectingFriendRequest: false,
+    isUpdatingName: false,
 
     verifyEmail: async (token) => {
         set({ isVerifyingEmail: true });
@@ -132,6 +133,21 @@ export const useAuthStore = create((set, get) => ({
             toast.error(error.response.data.message)
         } finally {
             set({ isUpdatingProfile: false })
+        }
+    },
+
+    updateFullName: async (fullName) => {
+        set({ isUpdatingName: true })
+        try {
+            const res = await axiosInstance.put("/auth/update-fullname", { fullName })
+            set({ authUser: res.data })
+            toast.success("Name updated successfully")
+            return true;
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to update name")
+            return false;
+        } finally {
+            set({ isUpdatingName: false })
         }
     },
 

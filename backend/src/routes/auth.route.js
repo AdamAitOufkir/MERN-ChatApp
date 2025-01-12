@@ -16,7 +16,8 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   getIncomingFriendRequests,
-  getOutgoingFriendRequests
+  getOutgoingFriendRequests,
+  updateFullName
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -29,6 +30,7 @@ router.get("/verify/:token", verifyEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.put("/update-profile", protectRoute, updateProfile);
+router.put("/update-fullname", protectRoute, updateFullName);
 router.post("/block/:id", protectRoute, blockUser);
 router.post("/unblock/:id", protectRoute, unblockUser);
 router.get("/check", protectRoute, checkAuth);
