@@ -52,23 +52,24 @@ const ChatHeader = () => {
               <div className="size-10 rounded-full relative">
                 <img
                   src={
-                    authUser.blockedByUsers?.includes(selectedUser._id)
+                    selectedUser?.blockedUsers?.includes(authUser?._id) ||
+                    authUser?.blockedByUsers?.includes(selectedUser?._id)
                       ? "/avatar.png"
-                      : selectedUser.profilePic || "/avatar.png"
+                      : selectedUser?.profilePic || "/avatar.png"
                   }
-                  alt={selectedUser.fullName}
+                  alt={selectedUser?.fullName}
                 />
               </div>
             </div>
             <div
-              className="lg:w-96 md:w-80  cursor-pointer"
+              className="lg:w-96 md:w-80 cursor-pointer"
               onClick={() => setIsProfileOpen(true)}
             >
-              <h3 className="font-medium">{selectedUser.fullName}</h3>
+              <h3 className="font-medium">{selectedUser?.fullName}</h3>
               <p className="text-sm text-base-content/70">
-                {selectedUser.blockedUsers?.includes(authUser._id)
+                {selectedUser?.blockedUsers?.includes(authUser?._id)
                   ? "Offline"
-                  : onlineUsers.includes(selectedUser._id)
+                  : onlineUsers?.includes(selectedUser?._id)
                   ? "Online"
                   : "Offline"}
               </p>
@@ -106,7 +107,7 @@ const ChatHeader = () => {
       </div>
 
       {/* Profile Modal */}
-      {isProfileOpen && (
+      {isProfileOpen && selectedUser && (
         <Profile user={selectedUser} onClose={() => setIsProfileOpen(false)} />
       )}
     </div>

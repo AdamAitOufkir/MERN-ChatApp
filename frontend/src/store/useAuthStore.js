@@ -333,20 +333,30 @@ export const useAuthStore = create((set, get) => ({
             set({ onlineUsers: userIds })
         })
 
-        socket.on("userBlockedUpdate", ({ blockerId }) => {
-            const currentUser = get().authUser;
-            if (!currentUser) return;
+        get().handleSocketEvents();
+    },
 
-            set({
-                authUser: {
-                    ...currentUser,
-                    blockedByUsers: [...(currentUser.blockedByUsers || []), blockerId]
-                }
-            });
+    handleSocketEvents: () => {
+        const socket = useAuthStore.getState().socket;
+        if (!socket) return;
 
-            // Refresh blocked users list if it's loaded
-            if (get().blockedUsers.length > 0) {
-                get().getBlockedUsers();
+        socket.on("userBlockedUpdate", ({ blockerId, blockedUserId }) => {
+            const { authUser } = get();
+            // Only update authUser if the current user is involved in the block
+            if (blockedUserId === authUser._id) {
+                set({
+                    authUser: {
+                        ...authUser,
+                        blockedByUsers: [...(authUser.blockedByUsers || []), blockerId]
+                    }
+                });
+            } else if (blockerId === authUser._id) {
+                set({
+                    authUser: {
+                        ...authUser,
+                        blockedUsers: [...(authUser.blockedUsers || []), blockedUserId]
+                    }
+                });
             }
         });
 

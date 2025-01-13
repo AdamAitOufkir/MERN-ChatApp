@@ -323,22 +323,8 @@ export const useChatStore = create((set, get) => ({
             }
         });
 
-        socket.on("userBlockedUpdate", ({ blockerId, blockedUserId }) => {
-            const { contacts } = get();
-            const { authUser } = useAuthStore.getState();
-
-            if (authUser._id === blockedUserId) {
-                const updatedContacts = contacts.map(contact => {
-                    if (contact._id === blockerId) {
-                        return {
-                            ...contact,
-                            blockedUsers: [...(contact.blockedUsers || []), authUser._id]
-                        };
-                    }
-                    return contact;
-                });
-                set({ contacts: updatedContacts });
-            }
+        socket.on("userBlockedUpdate", (data) => {
+            get().handleBlockUpdate(data);
         });
 
         socket.on("userUnblockedUpdate", ({ unblockerId, unblockedUserId }) => {
@@ -513,6 +499,28 @@ export const useChatStore = create((set, get) => ({
             socket.off("userUnblockedUpdate");
             socket.off("friendRequestAccepted");
         };
+    },
+
+    handleBlockUpdate: ({ blockerId, blockedUserId }) => {
+        const { selectedUser, contacts } = get();
+        const { authUser } = useAuthStore.getState();
+
+        // Only update if the block event involves the current user or selected chat
+        if (blockerId === authUser._id ||
+            blockedUserId === authUser._id ||
+            (selectedUser && (blockerId === selectedUser._id || blockedUserId === selectedUser._id))) {
+
+            const updatedContacts = contacts.map(contact => {
+                if (contact._id === blockerId) {
+                    return {
+                        ...contact,
+                        blockedUsers: [...(contact.blockedUsers || []), blockedUserId]
+                    };
+                }
+                return contact;
+            });
+            set({ contacts: updatedContacts });
+        }
     },
 
 }))

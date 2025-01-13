@@ -15,9 +15,13 @@ const MessageInput = () => {
 
   // Define blocking checks after hooks
   const isBlockedByMe = authUser?.blockedUsers?.includes(selectedUser?._id);
-  const isBlockedByThem = authUser?.blockedByUsers?.includes(selectedUser?._id);
+  const isBlockedByThem = selectedUser?.blockedUsers?.includes(authUser?._id);
+
+  // Add early return if no selected user
+  if (!selectedUser) return null;
 
   // Move useEffect outside of conditional logic
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) {
@@ -110,7 +114,9 @@ const MessageInput = () => {
   }
 
   return (
-    <div className="p-4 w-full max-w-full"> {/* Added max-w-full */}
+    <div className="p-4 w-full max-w-full">
+      {" "}
+      {/* Added max-w-full */}
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
           <div className="relative">
@@ -130,12 +136,18 @@ const MessageInput = () => {
           </div>
         </div>
       )}
-
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-full"> {/* Added max-w-full */}
-        <div className="flex-1 flex gap-2 min-w-0"> {/* Added min-w-0 to prevent flex child overflow */}
+      <form
+        onSubmit={handleSendMessage}
+        className="flex items-center gap-2 max-w-full"
+      >
+        {" "}
+        {/* Added max-w-full */}
+        <div className="flex-1 flex gap-2 min-w-0">
+          {" "}
+          {/* Added min-w-0 to prevent flex child overflow */}
           <input
             type="text"
-            className="w-full input input-bordered rounded-lg input-sm sm:input-md text-ellipsis" 
+            className="w-full input input-bordered rounded-lg input-sm sm:input-md text-ellipsis"
             placeholder="Type a message..."
             value={text}
             onChange={handleTyping}
@@ -147,7 +159,6 @@ const MessageInput = () => {
             ref={fileInputRef}
             onChange={handleImageChange}
           />
-
           <button
             type="button"
             className={`btn btn-sm btn-circle self-center
